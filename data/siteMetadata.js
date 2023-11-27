@@ -3,7 +3,7 @@ const siteMetadata = {
   title: 'Sunway Blog',
   author: 'Sunway',
   headerTitle: 'SunwayBlog',
-  description: '每临绝境峰回路转',
+  description: '',
   language: 'en-us',
   theme: 'system', // system, dark or light
   siteUrl: 'https://tailwind-nextjs-starter-blog.vercel.app',

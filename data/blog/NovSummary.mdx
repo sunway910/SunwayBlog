@@ -1,0 +1,38 @@
+---
+title: Nov Summary
+date: '2023-11-30'
+tags: ['Month Summary']
+draft: false
+images: []
+---
+
+
+
+<TOCInline toc={props.toc} exclude="Introduction"/>
+
+
+## Devv.ai
+
+发现个非常好用的搜索引擎 [Devv.ai](https://devv.ai)， 这个搜索引擎在这个月逐渐取代了 Google Search、 GPT、 StackOverflow等工具，非常好用，不仅能给出生成式的结果，还能给出引用的文档连接，且像GPT一样支持上下文。
+
+底层是基于微调后的 Code Llama 和 GPT-3.5， 作者是 [Jiayuan](https://x.com/Tisoga?t=XCWYeEokEe-3zG9zZL7quQ&s=09)， 如果将来收费了也将继续订阅这个服务，真的很好用。
+
+![devv example](/static/images/devv.jpg)
+
+
+
+
+
+## Zgo VPS
+这个月想提升一下网速，所以开始部署hysteria2，结果Zgo 美西4837 和 日本IIJ 的VPS都不支持 hy2 ，tcpdump抓包可以看到**客户端的流量都进来了，服务端的就是不回包**  。
+
+用VPS搭建了python udp server测试，发现服务器可以对udp流量进行正常的收发，就是hy2不行； 而同样的hy2搭建脚本在其他厂商那就没问题。
+
+已排除`firewall`、 `iptables`、`route table`等原因，就是提工单反馈说IDC有防御盾，可能会对UDP进行清洗。
+
+![zgo hy2](/static/images/zgo-hy2.png)
+
+不过 IIJ 线路用 `reality` 或者 `v2ray+ws+tls` 也勉强够用了，只是晚高峰时有点不稳定，但看看 Youtube 4k 没问题。
+
+<span style={{ color: 'red' }}>注意: 代理到日本IP后，用 Google Search 的时候，中文搜索结果可能前排几乎全是日文，很难受；可以锻炼自己用英语描述问题的能力</span>
+

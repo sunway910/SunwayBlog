@@ -10,9 +10,9 @@ images: []
 
 <TOCInline toc={props.toc} exclude="Introduction"/>
 
-# 一些新东西
+## 一些新东西
 
-## Devv.ai
+### Devv.ai
 
 发现个非常好用的搜索引擎 [Devv.ai](https://devv.ai)， 这个搜索引擎在这个月逐渐取代了 Google Search、 GPT、 StackOverflow等工具，非常好用，不仅能给出生成式的结果，还能给出引用的文档连接，且像GPT一样支持上下文。
 
@@ -20,7 +20,7 @@ images: []
 
 ![devv example](/static/images/devv.jpg)
 
-## Serverless Application Engine(SAE)
+### Serverless Application Engine(SAE)
 ![serverless intro from AlibabaCloud-Intl](/static/images/serverless.png)
 
 这个月尝试了用公有云的Serverless服务来部署服务，总的来说优点包括：`弹性伸缩`、`按量付费（省钱）`、`方便快捷效率高`
@@ -28,9 +28,9 @@ images: []
 以`SAE`为例，其本质是容器，用户不再需要购买云主机来部署服务，公有云会把容器、后端的服务集群完全向用户屏蔽，用户只需关注业务即可
 
 
-# 一些有趣的问题
+## 一些有趣的问题
 
-## Zgo VPS
+### Zgo VPS
 这个月想提升一下网速，所以开始部署hysteria2，结果Zgo 美西4837 和 日本IIJ 的VPS都不支持 hy2 ，tcpdump抓包可以看到**客户端的流量都进来了，服务端的就是不回包**  。
 
 用VPS搭建了python udp server测试，发现服务器可以对udp流量进行正常的收发，就是hy2不行； 而同样的hy2搭建脚本在其他厂商那就没问题。
@@ -44,7 +44,7 @@ images: []
 <span style={{ color: 'red' }}>注意: 代理到日本IP后，用 Google Search 的时候，中文搜索结果可能前排几乎全是日文，很难受；好处是可以锻炼自己用英语描述问题的能力~</span>
 
 
-## 网络抖动
+### 网络抖动
 这个月遇到了一个很头痛的问题，云上2个ECS实例在同一个交换机下出现网路抖动
 
 ![net unstable](/static/images/NetRTUnstable.png)
@@ -64,14 +64,14 @@ images: []
 造成的影响： 如果这个机柜挂了或者宿主机挂了相当于整个可用区挂了，只能切其他可用区。
 
 
-# 总结
+## 总结
 2023只剩最后一个月了，时间过得真快，马上可以看一些大佬的年终总结了~
 
 工作上：整体比较忙，一人身兼多职，什么都要解决，感觉自己什么都在干，好像又什么都没干，脑瓜子嗡嗡的。
 
 生活上：这个月有一个星期没做饭，每天吃公司楼下食堂，换换口味真不错；2个周末大乱斗没上线，朋友还以为我失踪了；右手手腕的茧越来越厚颜色越来越深了，有关和长期的握鼠标习惯有关，有时候有点不适。
 
-学习上：这个月英语学习开始从读往听上迁移，找了各种podcast和tech youtuber，有空就听一听看一看；了解了一些可以有效提升效能的工具；开始学习nextjs。
+学习上：这个月英语学习开始从读往听上迁移，找了各种 podcast 和 tech youtuber，有空就听一听看一看；了解了一些可以有效提升效能的工具；开始学习nextjs。
 
 
 

@@ -63,8 +63,11 @@ module.exports = () => {
     reactStrictMode: true,
     pageExtensions: ['ts', 'tsx', 'js', 'jsx', 'md', 'mdx'],
     eslint: {
+      ignoreDuringBuilds: true,
       dirs: ['app', 'components', 'layouts', 'scripts'],
     },
+    output: 'export',
+    distDir: 'static',
     images: {
       unoptimized: true,
       remotePatterns: [
@@ -74,14 +77,14 @@ module.exports = () => {
         },
       ],
     },
-    // async headers() {
-    //   return [
-    //     {
-    //       source: '/(.*)',
-    //       headers: securityHeaders,
-    //     },
-    //   ]
-    // },
+    async headers() {
+      return [
+        {
+          source: '/(.*)',
+          headers: securityHeaders,
+        },
+      ]
+    },
     webpack: (config, options) => {
       config.module.rules.push({
         test: /\.svg$/,

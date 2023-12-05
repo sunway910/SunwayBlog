@@ -1,0 +1,24 @@
+name: SunwayBlog CI
+on:
+  push:
+    branches:
+      - main
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Deploy to K8S Master
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.K8S_MASTER_KEY }}
+          port: 22
+          script: |
+            cd /apps/SunwayBlog
+            git pull origin master
+            yarn install
+            yarn build
+            

@@ -67,7 +67,7 @@ module.exports = () => {
       dirs: ['app', 'components', 'layouts', 'scripts'],
     },
     output: 'export',
-    distDir: 'static',
+    distDir: 'build',
     images: {
       unoptimized: true,
       remotePatterns: [

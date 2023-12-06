@@ -66,7 +66,6 @@ module.exports = () => {
       ignoreDuringBuilds: true,
       dirs: ['app', 'components', 'layouts', 'scripts'],
     },
-    output: 'export',
     distDir: 'build',
     images: {
       unoptimized: true,

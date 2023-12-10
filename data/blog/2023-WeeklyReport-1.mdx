@@ -1,0 +1,106 @@
+---
+title: 2023 Nov Weekly Report 1
+date: '2023-12-10'
+tags: ['Weekly Report']
+draft: false
+images: []
+---
+
+<TOCInline toc={props.toc}/>
+
+## 工作上
+
+### Nginx URI 异常
+
+要部署一个前端项目在nginx上，部署后用域名请求发现请求全部 400，而用IP访问则正常，又是抓包又是看日志排查了好久，其实问题很简单
+```
+错误的location
+location /test {
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection "upgrade";
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header Host $host;
+      proxy_pass https://alb-xxx.cn-hongkong.alb.aliyuncs.com:8443;
+}
+正确的location，在URI的最后有一个/（也可以在ALB重写URI）
+location /test/ {
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection "upgrade";
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header Host $host;
+      proxy_pass https://alb-xxx.cn-hongkong.alb.aliyuncs.com:8443;
+}
+```
+可惜我脑子，明明以前遇到过相同的问题，这次又排查了好长时间
+
+### 容灾演练
+
+核心业务部署在同地域不同机房，演练内容包括：先下线zoneB验证zoneC是否能独立承载业务；验证完成后；拉起zoneB，下线zoneC，验证zoneB是否能独立承载业务
+
+本来架构设计的就是跨可用区双活，理论上是完全没问题的，本来以为是走个过场很快结束，但真正实操是还是暴露了很多问题：
+
+- nginx upstream健康检查插件失效，导致流量转发到下线了的服务器
+- 开发在代码写死了一些配置导致某些功能异常
+- 有一些老旧的服务是单节点部署的，下线后由于新人不熟悉业务不能快速重新拉起，导致不满足RTO
+
+同时还发现了不少可以改进的小地方，所以容灾演练还是很有必要的
+
+
+<span style={{ color: 'red' }}>PPT里写的再漂亮再高可用，也不如进行定期的容灾演练</span>
+
+
+
+### SSH hang forever
+
+问题： `Redhat Enterprise 8.8` SSH登录时发现执行/etc/profile*时卡住，`Control+C`强制退出初始化过程会导致hostname异常显示，很多env alias等初始化配置都被打断无法正常使用，**但实际业务进程没有问题**
+
+![bash4.4](/static/images/bash4_4err.png)
+
+
+在/etc/profile*中打`echo`断点发现初始化实际是卡在了：/etc/bash_completion.d/gluster 中执行的 `pidof glusterfs` 命令
+
+用strace跟踪发现实际是卡在了 `openat /proc/$pid/cmdline`
+
+> /proc/pid/cmdline 文件包含了进程的完整命令行，包括执行文件的路径和参数。这个文件中的命令行参数是由空字符('\0')分隔的一组字符串，最后还有一个额外的空字符。这个文件的作用是让用户可以查看正在运行的进程的完整命令行信息。
+
+![strace_hang](/static/images/strace_hang.png)
+
+然后进一步发现不光是 `pidof` 命令的参数无法读取，很多如 `ps ss netstat` 等命令在带参数执行时都会卡住
+
+排查了半天，和 cgroup、permission 等完全没有关系，就好像死锁了一样，有其他进程在读写这个cmdline文件，然后导致其他进程在 openat 这个文件的时候hang forever
+
+没有搞明白这个openat读操作是和谁死锁了，又不太方便一个个进程Kill了去排查，好在业务是集群部署的，不会有单点故障，索性直接重启服务器，然后发现ssh恢复了，果然重启能解决99%的问题~
+
+反思：后续是不是可以通过 pstack、gdb等工具来排查一下这个死锁问题，又或者几年后灵光一现，对这个问题就有更好解决方法了
+
+
+
+
+
+
+
+## 生活上
+
+- 最近感觉闲下来了，有更多的精力投入到个人学习和提升生活质量上了。
+    - 这周睡眠质量明显提升，但是早上7点还是赖床，就是脑子醒了，但身体没醒的状态(一种说法是是因为在远古时期，祖先为了在冬天活下去，会尽量保持身体的温暖，减少热量的损失，这个习惯被深深地刻在了基因了)
+    - 发现一家烧腊店非常好吃，这周吃了好多次他们家的叉烧和卤猪小肠，搞得都不想自己做饭了
+    - 这周没有喝咖啡，而是用茶替代了，感觉喝茶同样不错
+
+
+
+
+## 学习上
+
+- 要抵制学习新知识的诱惑，总是啥都想去看一下...
+- 迁移过来发现blog还是不支持以url的方式嵌入youtube bilibili的视频，我还需要去抄一下别人代码
+    - [https://github.com/Cwarcup/on-your-mental](https://github.com/Cwarcup/on-your-mental)
+    - [https://github.com/maqi1520/nextjs-tailwind-blog](https://github.com/maqi1520/nextjs-tailwind-blog)
+- 在看了高天的code review后[https://www.bilibili.com/video/BV1Ab4y1j7KL](https://www.bilibili.com/video/BV1Ab4y1j7KL)，决定开始重写一下我的[Google Drive Script](https://github.com/0utsiderZhong/SyncDataToGoogleDrive)，让其更加通用一点
+- 重写开始看k8s scheduler的源码，特别是informer部分相关的源码
+
+
+
+
+

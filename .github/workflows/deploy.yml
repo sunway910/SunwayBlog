@@ -1,4 +1,4 @@
-name: SunwayBlog CI
+name: SunwayBlog Deployment
 on:
   push:
     branches:
@@ -18,7 +18,7 @@ jobs:
           port: 22
           script: |
             cd /apps/SunwayBlog
-            git pull origin master
+            git pull 
             yarn install
             yarn build
             

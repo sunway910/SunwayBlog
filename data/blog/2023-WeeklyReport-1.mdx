@@ -67,6 +67,36 @@ location /test/ {
 
 反思：后续是不是可以通过 pstack、gdb等工具来排查一下这个死锁问题，又或者几年后灵光一现，对这个问题就有更好解决方法了
 
+### 文件同步
+
+业务有个需求需要实时同步2个目录，采用的方案是: [lsyncd](https://github.com/lsyncd/lsyncd)
+
+跑了两天发现2个目录`du -sh /xxx`出来大小结果竟然不一样
+
+```shell
+# 错误的lsyncd配置
+$ cat /etc/lsyncd.conf
+...
+sync {
+   default.rsync,
+   source = "/app/local/data/source",
+   target = "/app/local/data/destination",
+}
+```
+
+```shell
+# 正确的配置
+...
+sync {
+   default.rsync,
+   source = "/app/local/data/source/",
+   target = "/app/local/data/destination/",
+}
+```
+**lsyncd如果不在目录最后加 / 的话是不会递归同步子目录的**
+
+
+<span style={{ color: 'blue' }}>同步脚本是GPT写的，验证测试的时候只验证了根目录下的同步，没有验证子目录下的同步，还好没出大问题。一周在反斜杠/的问题上栽倒2次，真的菜</span>
 
 ## 生活上
 

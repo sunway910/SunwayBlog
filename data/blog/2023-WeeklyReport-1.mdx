@@ -12,7 +12,7 @@ images: []
 
 ### Nginx URI 异常
 
-要部署一个前端项目在nginx上，部署后用域名请求发现请求全部 400，而用IP访问则正常，又是抓包又是看日志排查了好久，其实问题很简单
+要部署一个前端项目在nginx上，部署后用域名请求发现请求全部 400，又是抓包又是看日志排查了好久，其实问题很简单
 ```
 错误的location
 location /test {
@@ -65,7 +65,7 @@ location /test/ {
 
 没有搞明白这个openat读操作是和谁死锁了，又不太方便一个个进程Kill了去排查，好在业务是集群部署的，不会有单点故障，索性直接重启服务器，然后发现ssh恢复了，果然重启能解决99%的问题~
 
-反思：后续是不是可以通过 pstack、gdb等工具来排查一下这个死锁问题，又或者几年后灵光一现，对这个问题就有更好解决方法了
+反思：有空要学习一下 pstack gdb 等工具来排查一下这个问题
 
 ### 文件同步
 
@@ -114,7 +114,7 @@ sync {
     - [https://github.com/Cwarcup/on-your-mental](https://github.com/Cwarcup/on-your-mental)
     - [https://github.com/maqi1520/nextjs-tailwind-blog](https://github.com/maqi1520/nextjs-tailwind-blog)
 - 在看了高天的code review后[https://www.bilibili.com/video/BV1Ab4y1j7KL](https://www.bilibili.com/video/BV1Ab4y1j7KL)，决定开始重写一下我的[Google Drive Script](https://github.com/0utsiderZhong/SyncDataToGoogleDrive)，让其更加通用一点
-- 重写开始看k8s scheduler的源码，特别是informer部分相关的源码
+- 重写开始看k8s scheduler、informer部分相关的源码
 
 
 

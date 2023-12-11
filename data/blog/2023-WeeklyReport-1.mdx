@@ -16,19 +16,11 @@ images: []
 ```
 错误的location
 location /test {
-      proxy_set_header Upgrade $http_upgrade;
-      proxy_set_header Connection "upgrade";
-      proxy_set_header X-Real-IP $remote_addr;
-      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
       proxy_set_header Host $host;
       proxy_pass https://alb-xxx.cn-hongkong.alb.aliyuncs.com:8443;
 }
 正确的location，在URI的最后有一个/（也可以在ALB重写URI）
 location /test/ {
-      proxy_set_header Upgrade $http_upgrade;
-      proxy_set_header Connection "upgrade";
-      proxy_set_header X-Real-IP $remote_addr;
-      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
       proxy_set_header Host $host;
       proxy_pass https://alb-xxx.cn-hongkong.alb.aliyuncs.com:8443;
 }
@@ -54,7 +46,7 @@ location /test/ {
 
 ### SSH hang forever
 
-问题： `Redhat Enterprise 8.8` SSH登录时发现执行/etc/profile*时卡住，`Control+C`强制退出初始化过程会导致hostname异常显示，很多env alias等初始化配置都被打断无法正常使用，**但实际业务进程没有问题**
+问题： `Redhat Enterprise 8.8` SSH登录时发现执行/etc/profile*时卡住，`Control+C` 强制退出初始化过程会导致 hostname 异常显示，很多 env alias 等初始化配置都被打断无法正常使用，**但实际业务进程没有问题**
 
 ![bash4.4](/static/images/bash4_4err.png)
 
@@ -76,25 +68,19 @@ location /test/ {
 反思：后续是不是可以通过 pstack、gdb等工具来排查一下这个死锁问题，又或者几年后灵光一现，对这个问题就有更好解决方法了
 
 
-
-
-
-
-
 ## 生活上
 
 - 最近感觉闲下来了，有更多的精力投入到个人学习和提升生活质量上了。
     - 这周睡眠质量明显提升，但是早上7点还是赖床，就是脑子醒了，但身体没醒的状态(一种说法是是因为在远古时期，祖先为了在冬天活下去，会尽量保持身体的温暖，减少热量的损失，这个习惯被深深地刻在了基因了)
     - 发现一家烧腊店非常好吃，这周吃了好多次他们家的叉烧和卤猪小肠，搞得都不想自己做饭了
     - 这周没有喝咖啡，而是用茶替代了，感觉喝茶同样不错
-
-
+    - 黑五副作用来了，果然只有买VPS的那一刻是兴奋的，现在6台服务器有3台在吃灰，开始后悔了（陷入和Steam买游戏一样的状态了）
 
 
 ## 学习上
 
 - 要抵制学习新知识的诱惑，总是啥都想去看一下...
-- 迁移过来发现blog还是不支持以url的方式嵌入youtube bilibili的视频，我还需要去抄一下别人代码
+- 迁移过来发现blog还是不支持以 url 的方式嵌入youtube bilibili的视频，只能用webm格式的嵌入，我还需要去抄一下别人代码
     - [https://github.com/Cwarcup/on-your-mental](https://github.com/Cwarcup/on-your-mental)
     - [https://github.com/maqi1520/nextjs-tailwind-blog](https://github.com/maqi1520/nextjs-tailwind-blog)
 - 在看了高天的code review后[https://www.bilibili.com/video/BV1Ab4y1j7KL](https://www.bilibili.com/video/BV1Ab4y1j7KL)，决定开始重写一下我的[Google Drive Script](https://github.com/0utsiderZhong/SyncDataToGoogleDrive)，让其更加通用一点

@@ -1,0 +1,252 @@
+---
+title: See The World
+date: '2023-08-01'
+tags: ['Tech']
+draft: false
+summary: 看见世界
+---
+
+<TOCInline toc={props.toc} indentDepth ={3} fromHeading={1} toHeading={6} />
+
+## 1 Cloudflare
+
+>Cloudflare 是世界最大的网络之一。今天，企业、非营利组织、博客作者和任何有互联网存在的人都因为 Cloudflare 而拥有更快、更安全的网站和应用。
+
+更多 `CLOUDFLARE` 的详细信息请参考：[what-is-cloudflare](https://www.cloudflare.com/zh-cn/learning/what-is-cloudflare/)
+
+
+### 1.1 安装 cloudflare Warp 客户端
+* [首先安装对应的客户端](https://1.1.1.1 "安装对应的客户端")
+
+![Cloudflare installtion](/static/images/CloudflareInstall.png)
+
+### 1.2 获取密钥
+Telegram搜索: `@generatewarpplusbot` or 直接访问 [telegram机器人](https://t.me/generatewarpplusbot)，然后按照以下步骤获取 key 和 conf 文件
+
+* /start：开启对话
+* 订阅频道才能进行下一步操作
+* /generate
+* /generate $result    (根据提示计算出 $result 后自动生成 key 和 conf 文件)
+
+![warp bot](/static/images/warpbot.png)
+
+
+
+### 1.3 配置 key
+
+通过客户端的 `偏好设置` 功能配置 telegram bot 生成的 key
+
+![Cloudflare Setting](/static/images/CloudflareSetting.png)
+
+**成功后可获取24PB的免费流量，1个key可供5台设备使用；默认代理到香港节点，不解锁 chatgpt netflix 等资源**
+
+
+
+------------
+
+
+## 2 WireGuard
+
+### 2.1 安装优选IP文件
+[下载并解压文件](https://drive.google.com/file/d/1anX5I-MWkjmedrtrrZiLpInqxUFvZpLI/view?usp=drive_link)
+
+- 在启用代理的情况下打开文件夹里面的：`手动方式1：生成优选IP端口结果文件.bat`
+- 输入1 IPV4优选
+- 然后等待结果，会提示测试结果已经写入result.csv
+- 打开文件夹里面的result.csv，里面是优选好的IP，按照丢包和ping延迟排序，选择延迟最低的1个如：`162.159.192.63:943`
+
+![wire_guard good ip](/static/images/wireguardgoodip.png)
+
+
+### 2.2 安装并配置wireguard
+
+[安装wireguard](https://www.wireguard.com/install)
+
+点击 `wireguard` 界面中的 `新建隧道` 并导入再 `telegram bot` 中生成的 `wg-config.conf` 文件
+
+修改配置文件中的`endpoint`为刚刚生成的延迟最低的 `ip:port`
+
+![Wireguard Setting](/static/images/WireguardSetting.png)
+
+**最后启用连接即可，如此实现更流畅的访问，但使用这些`优选的IP`进行代理极有可能仍然无法解锁 Chatgpt Tiktok Netflix...**
+
+
+
+### 2.3 Wireguard Android & IOS
+
+> 由于wireguard是通用客户端，配置也是通用配置，所以上面的配置文件是通用的，如果有windows电脑，直接将优选后的wireguard的配置文件界面右键-导出所有隧道，然后传给手机，手机上安装好wireguard客户端，导入文件，即可使用。[Source Blog](https://duangks.com/archives/124/)
+
+<span style={{ color: 'red' }}>IOS</span>
+
+- IOS区的 wireguard 需要使用美区账号下载，这个是没办法跳过的。
+- IOS优选IP需要去商店下载 `ISH shell` 这个软件，然后打开，输入命令 `apk add openssh curl bash` 然后回车等待依赖安装完成，然后执行下面的命令
+- `curl -sSL https://gitlab.com/rwkgyg/CFwarp/raw/main/point/endip.sh -o endip.sh && chmod +x endip.sh && ./endip.sh` 然后回车
+- 把优选出来的IP第一个，复制粘贴到wireguard配置的对端地址里。
+
+<span style={{ color: 'red' }}>Android</span>
+
+- 和IOS使用大同小异，需要下载wireguard软件，[这里从官网下载即可](https://www.wireguard.com/install/)
+- 下载软件`termux`，选择后缀为arm64-v8a.apk的版本下载，然后打开app，升级依赖：`pkg upgrade`
+- 输入命令: `curl -sSL https://gitlab.com/rwkgyg/CFwarp/raw/main/point/endip.sh -o endip.sh && chmod +x endip.sh && ./endip.sh`
+- 把优选出来的IP第一个，复制粘贴到 `wireguard` 配置的对端地址里
+
+<span style={{ color: 'red' }}>用别人的 key 获取 wireguard 配置文件</span>
+
+- 如果你从别的渠道获取的`warp key`，想要自己生成wireguard配置文件，[可以使用这个网站](https://replit.com/@ygkkkk/WARP-Wireguard-Register)
+- 首先输入2，然后输入2，将我们获取的 key 填写进去，即可生成对应 wireguard 配置文件
+
+![Warp Wireguard Register](/static/images/WarpWireguardRegister.png)
+
+
+
+------------
+
+
+## 3 自建梯子
+
+**Before Build Your Own VPN**
+- 需要 [购买自己的VPS](https://hostalk.net/deals.html)
+- 购买前需要评估厂家IP是否干净（干净的IP决定了搭建完成后是否能解锁 Netflix Chatgpt Bard Claude....）
+- 最好买三网线路良好的VPS，线路可以找开源的 [BenchMark](https://github.com/LemonBench/LemonBench) 进行测试，也可以自行`mtr -z $ip`测试（线路最重要，其次才是协议）
+
+
+
+### 3.1 VPN搭建
+
+没`域名`的用户可以安装 `Shadowsocks-libev` 和 `Reality` 代理（IP访问方式）
+
+有`域名`的可以安装 `V2ray+ Nginx + WebSocket` 和 `Hysteria2` 代理 （域名访问方式）
+
+**需要注意的一些点:**
+ - **1:** 一般需要域名进行安装的方式都需要使用 [acme](https://github.com/acmesh-official/acme.sh "执行代理脚本时会自动安装") 去请求 `LetsEncrypt`、`ZeroSSL`等机构的API去生成证书(同一个域名不能频繁请求创建证书的API)，API请求时需要验证域名的`80端口`，所以需要提前确保`80端口`没有被占用(这里也可以使用 `acme` 通过 [DNS API](https://github.com/acmesh-official/acme.sh/wiki/dnsapi) 手动生成证书代替)
+ - **2:** 安装前需要 backup `nginx.conf`文件（如果有）
+ - **3:** 提前关闭防火墙 (`systemctl disable & stop SELinux FireWall...`)
+ - **4:** 如果`cloud vendor`有提供类似于`security group`的网络安全相关的服务，需要去`控制台`开放端口
+ - **5:** 有一些小厂商为了防止机房被打的太惨，可能封堵了UDP流量，这样的VPS是无法安装`hy2`代理的，需要提前了解一些厂家的策略 （同行下手太狠）
+ - **6:** 通过 `域名` 搭建梯子时需要关闭 `Cloudflare` 的前置代理 (证书申请会失败)
+
+一般地安装脚本都会修改内核参数，以提供更适合代理进程运行的网络环境，[比如开启BBR、修改tcp_rmem、tcp_wmem等参数](https://drive.google.com/file/d/1ZsO1yrSXZH3pQsqZosk79pLb1CgWEu-X/view?usp=drive_link)
+
+```shell
+$ echo net.core.default_qdisc=fq >> /etc/sysctl.conf
+$ echo net.ipv4.tcp_congestion_control=bbr >> /etc/sysctl.conf
+$ sysctl -p
+
+# BBR是基于带宽和延迟反馈的拥塞控制算法，不是计网中基于丢包或延迟的Reno拥塞控制新算法
+# 更多 BBR 内容可以看 Google Youtube BBR 大规模实践
+$ sysctl net.ipv4.tcp_congestion_control
+```
+
+-------------
+<span style={{ color: 'red' }}>[可选：按照脚本提示安装 vless（Shadowsocks-libev、Reality）](https://github.com/yeahwu/v2ray-wss)</span>
+
+```shell
+# step 1
+
+$ wget https://raw.githubusercontent.com/yeahwu/v2ray-wss/main/tcp-wss.sh && bash tcp-wss.sh
+
+# Reality 一般模拟的是这个域名的流量：www.amazon.com addons.mozilla.org www.tesla.com www.un.org
+# step 2 查看代理进程状态
+
+$ systemctl status xray
+
+# vless code模板
+# vless://6114f5cc-18e3-4c05-85af-d9ea114adf11@12.14.15.11:55547?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.amazon.com&fp=chrome&pbk=KhrZdfK7yitzbwmkBA1GqLr7b8ehic022QEbJuxKHyU&sid=88&type=tcp&headerType=none#1024-reality
+
+# Google Play 或者 Apple Store 安装V2rayNG客户端，通过粘贴板导入vless code
+```
+-------------
+<span style={{ color: 'red' }}>[可选：按照脚本提示安装 vmess（V2ray+ Nginx + WebSocket）](https://github.com/yeahwu/v2ray-wss)</span>
+
+```shell
+# step 1
+$ wget https://raw.githubusercontent.com/yeahwu/v2ray-wss/main/tcp-wss.sh && bash tcp-wss.sh
+
+# step 2 查看代理进程状态
+$ systemctl status v2ray
+
+# vmess code模板
+# vmess://eyJwb3J0Ijo1AAS1NSwicHMiOiIxMDI0AAdzcyIsInRscyI6InRscyIsImlkIjoiYTZmODA4NWYtNDQ4Ny00MmVlLWI3YTctNzAzYzk1NTA3NTZiIiwiYWlkIjowLCJ2IjoyLCJob3N0Ijoid3d3LnN1bndheS5ydW4iLCJ0eXBlIjoibm9uZSIsInBhdGgiOiIvNTI1ZGMzIiwibmV0Ijoid3MiLCJhZGQiOiJ3d3cuc3Vud2F5LnJ1biIsImFsbG93SW5zZWN1cmUiOjAsIm1ldGhvZCI6Im5vbmUiLCJwZWVyIjoid3d3LnN1bndheS5ydW4iLCJzbmkiOiJ3d3cuc3Vud2F5LnJ1biJ9
+
+# Google Play 或者 Apple Store 安装V2rayNG客户端，通过粘贴板导入导入vmess code
+
+# 如果卸载VPN请注意不要删除nginx；或者可以直接停掉该服务而不做卸载：systemctl stop v2ray/xray
+
+```
+-------------
+<span style={{ color: 'red' }}>[可选：按照脚本提示安装 hy2](https://github.com/seagullz4/hysteria2)</span>
+
+```shell
+# 安装hysteria2：
+$ curl -sSL https://github.com/seagullz4/hysteria2/raw/main/install.sh -o install.sh && chmod +x install.sh && bash install.sh
+# 安装完成后直接在客户端从剪切板导入hy2链接即可
+```
+
+### 3.2 客户端安装
+
+- [neko客户端安装链接](https://github.com/MatsuriDayo/NekoBoxForAndroid/releases "支持hy2")
+- [v2ray客户端下载](https://github.com/apernet/hysteria/releases/ "不支持hy2")
+- [Clash Verge客户端下载](https://github.com/zzzgydi/clash-verge/releases "不支持hy2")
+
+**经历了 `2023-11 CFW` 的事件后，很多作者都将开源项目删库或归档了，需要的话可以github找别人的fork或者backup**
+
+![DeleteClient](/static/images/DeleteClient.png)
+
+[可以顺便看看Tuic作者的这篇文章，振聋发聩](https://www.eaimty.com/2023/opensource-project-based-on-hormone/)
+
+### 3.3 V2ray转Clash
+
+注意 clash 不支持 `vless` 等协议的导入
+
+`vmess`可以通过 https://v1.v2rayse.com/v2ray-clash 转为 `clash.yaml` 配置文件，将多个节点写到同一个yaml可以很方便地进行节点切换
+
+![V2rayToClash](/static/images/V2rayToClash.png)
+
+
+
+### 3.4 封禁检测
+
+<span style={{ color: 'red' }}>Port 被墙</span>
+
+如V2ray日志提示 net/http:TLS handshake timeout 则极有可能端口被[GFW](https://gfw.report/publications/usenixsecurity23/zh/ "GFW")封了，
+可以通过网站 `tcp.ping.pe` ,输入自己的`ip:port`进行检测（这种情况一般在使用`V2ray+ Nginx + WebSocket`且没有使用CF前置代理时出现）
+
+**如下图可以发现我的IP的 55547 端口在墙内已经无法连接，但其他世界各地的机器可以正常和我节点的55557端口建立连接**
+
+![GfwIpBan](/static/images/GfwIpBan.png)
+
+如果证实被`GFW`干碎了，可以改`nginx.conf`换端口，开新端口的安全组，再改 clash 客户端 yaml 配置文件的端口即可
+
+-------------
+
+<span style={{ color: 'red' }}>IP 被墙</span>
+
+IP被墙可以通过网站 `ping.ce` 检测，墙了就找厂家提工单换IP，重新配置`DNS`解析等配置
+
+-------------
+
+<span style={{ color: 'red' }}>减少被墙的方法</span>
+
+
+建议在CF中配置SSL前置代理
+
+通过实验，如果不开启CF前置代理，那么端口极有可能每天一封，就是白天使用正常，睡一觉醒来端口就被墙了
+
+每天都去改nginx配置，改服务器安全组，改客户端的配置文件真的麻烦
+
+![CFSSL](/static/images/CFSSL.png)
+
+-------------
+
+<span style={{ color: 'red' }}>我的最佳实践</span>
+
+- 移动端安装V2rayNG使用 `Reality` ，PC端 Clash 使用 `V2ray+ Nginx + WebSocket + CF前置`
+- 移动端和PC端都是用 `Hy2`
+
+-------------
+
+
+
+## 4 买梯子/上机场
+
+使用经验有限、不做说明...

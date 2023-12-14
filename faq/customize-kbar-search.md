@@ -30,12 +30,12 @@ export const SearchProvider = ({ children }) => {
             perform: () => router.push('/'),
           },
           {
-            id: 'projects',
-            name: 'Projects',
+            id: 'favorites',
+            name: 'Favorites',
             keywords: '',
             shortcut: ['p'],
             section: 'Home',
-            perform: () => router.push('/projects'),
+            perform: () => router.push('/favorites'),
           },
         ],
         onSearchDocumentsLoad(json) {

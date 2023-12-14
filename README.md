@@ -142,7 +142,7 @@ npx degit 'timlrx/tailwind-nextjs-starter-blog'
 3. Modify the content security policy in `next.config.js` if you want to use
    other analytics provider or a commenting solution other than giscus.
 4. Personalize `authors/default.md` (main author)
-5. Modify `projectsData.ts`
+5. Modify `favoritesData.ts`
 6. Modify `headerNavLinks.ts` to customize navigation links
 7. Add blog posts
 8. Deploy on Vercel

@@ -12,8 +12,8 @@ export default function Favorites() {
           <h1 className="text-3xl font-extrabold leading-9 tracking-tight text-gray-900 dark:text-gray-100 sm:text-4xl sm:leading-10 md:text-6xl md:leading-14">
             Favorites
           </h1>
-          <p className="text-lg leading-7 text-gray-500 dark:text-gray-400">
-            Showcase your Favorites with a hero image (16 x 9)
+          <p className="text-2xl leading-7 text-orange-500 dark:text-gray-400">
+            My Favorites (我的收藏夹)
           </p>
         </div>
         <div className="container py-12">
@@ -22,9 +22,9 @@ export default function Favorites() {
               <Card
                 key={d.title}
                 title={d.title}
-                description={d.description}
+                linkList={d.linkList}
+                extensions={d.extensions}
                 imgSrc={d.imgSrc}
-                href={d.href}
               />
             ))}
           </div>

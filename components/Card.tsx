@@ -21,7 +21,8 @@ const Card = ({ title, linkList, imgSrc, extensions }) => (
             className="text-base font-medium leading-6 text-primary-500 hover:text-primary-600 dark:hover:text-primary-400"
             aria-label={`Link to ${title}`}
           >
-            Get more &rarr;
+          <br/>
+            Get More &rarr;
           </Link>
         )}
       </div>

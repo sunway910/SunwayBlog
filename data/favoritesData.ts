@@ -10,6 +10,10 @@ const favoritesData = [
           description:`专注于Java生态的Baeldung`,
           href: 'https://www.baeldung.com/'
         },
+        {
+          description:`Python周刊`,
+          href: 'https://pythonhunter.org/'
+        },
     ],
     imgSrc: '',
     extensions: '/favorites/tech',
@@ -18,12 +22,12 @@ const favoritesData = [
     title: 'Blog (收藏的技术博客)',
     linkList:[
       {
-        description:`manjusaka的博客`,
-        href: 'https://www.manjusaka.blog'
-      },
-      {
         description:`plantegg的博客，学习大佬排查问题的思路`,
         href: 'https://plantegg.github.io/'
+      },
+      {
+        description:`manjusaka的博客`,
+        href: 'https://www.manjusaka.blog'
       },
       {
         description:`伪架构师的技术博客，云原生技术实践`,
@@ -49,8 +53,8 @@ const favoritesData = [
         href: 'https://www.flaticon.com/packs/essential-collection'
       },
       {
-        description:`前端Tailwind组件模板`,
-        href: 'https://flowrift.com/w/'
+        description:`Tailwind资源库`,
+        href: 'https://github.com/icopy-site/awesome-cn/blob/master/docs/awesome/awesome-tailwindcss.md'
       },
       {
         description:`json2yaml`,
@@ -58,7 +62,7 @@ const favoritesData = [
       },
       {
         description:`文件在线格式转换`,
-        href: 'https://www.alltoall.net/'
+        href: 'https://cloudconvert.com/'
       },
       {
         description:`密码生成器`,

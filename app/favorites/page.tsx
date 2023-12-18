@@ -22,7 +22,7 @@ export default function Favorites() {
               <Card
                 key={d.title}
                 title={d.title}
-                linkList={d.linkList}
+                linkList={d.linkList.slice(0,5)}
                 extensions={d.extensions}
                 imgSrc={d.imgSrc}
               />

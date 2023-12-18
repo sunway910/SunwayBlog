@@ -1,0 +1,114 @@
+---
+title: Vercel V0
+date: '2023-12-18'
+tags: ['Tech']
+draft: false
+summary: Generate react code by Vercel V0
+---
+
+<TOCInline toc={props.toc}/>
+
+## What is vercel
+
+>Vercel 是一个面向开发人员的前端云平台，旨在提供开发体验和基础设施，以构建、扩展和保护更快、更个性化的 Web。它提供了一系列功能和工具，包括自动化优化、数据获取、Node.js 和 Edge Runtimes、高级路由、动态 HTML 流式处理、CSS 支持、中间件、React 服务器组件、客户端和服务器渲染、Next.js 14 等。Vercel 还提供了预构建的模板，如 Next.js 模板、React 模板、Astro 模板、Svelte 模板、Nuxt 模板和 Python 模板，以及一系列部署、存储、可观察性、安全性和 CLI & API 等方面的功能。
+
+>Vercel 还提供了全球性能、无服务器存储、99.99% 的可用性、预览功能、自动 HTTPS、免费部署等特性。它还支持一系列流行的框架，包括 Next.js、React、Astro、Svelte、Nuxt 和 Python。Vercel 还提供了一系列模板，如 Next.js Boilerplate、Image Gallery Starter、Next.js Commerce 等，以及一系列客户案例和客户见证，展示了一些大型公司对 Vercel 的信任和使用情况。
+
+>此外，Vercel 还提供了详细的文档，包括基础知识、部署、构建、基础设施、工作流、合规性、安全性、CLI & API、域名、账户管理、仪表板、集成、限制、错误、生产检查单、增量迁移、发布阶段、私有注册表等方面的内容。Vercel 还提供了一系列指南和博客，帮助开发人员更好地使用 Vercel 平台。
+
+>总的来说，Vercel 是一个旨在提供更快、更个性化 Web 的前端云平台，为开发人员提供了丰富的功能和工具，以加速开发周期，提高团队生产力，并为全球范围内的 Web 应用提供可靠的基础设施和服务。
+
+## Generate Code by Vercel
+
+
+
+### 1 Access to V0
+
+访问[v0.dev](https://v0.dev/) 并注册好`vercel`账号
+
+![VercelIndex](/static/images/VercelIndex.png)
+
+-----------------------
+
+### 2 Input your Prompt / Image
+输入`prompt`如: `a page that help me store my favorites web url list` ，然后 `submit`
+
+![VercelPromptExample](/static/images/VercelPromptExample.png)
+
+**代码生成结果如下图：**
+
+![VercelExampleResult](/static/images/VercelExampleResult.png)
+
+**会生成3个模板代码，演示以 `example 1` 为例**
+
+-----------------------
+### 3 Get Exec Command
+
+代码生成结束时会提供一个可执行命令给用户：`npx v0 add bdVP7vwEU0i`，执行该命令可以自动安装 `React代码` 中所依赖的 `Components`
+
+![VercelCodeExample](/static/images/VercelCodeExample.png)
+
+-----------------------
+
+### 4 Add Components
+
+**在 `控制台console` 执行上图 Vercel 提供的安装命令: `npx v0 add bdVP7vwEU0i`**
+
+**如果是第一次使用则需要执行 `npx init` 命令**
+
+```shell
+Administrator@CHINAMI-6CJO834 MINGW64 /d/DevelopProject/SunwayBlog (main)
+$ npx -v
+9.6.7
+
+Administrator@CHINAMI-6CJO834 MINGW64 /d/DevelopProject/SunwayBlog (main)
+$ npx v0 add bdVP7vwEU0i
+Need to install the following packages:
+  v0@0.0.9
+Ok to proceed? (y) y
+
+✔ Writing components.json...
+✔ Initializing project...
+✔ Installing dependencies...
+
+Success! Project initialization completed. You can now starting adding components.
+
+
+Administrator@CHINAMI-6CJO834 MINGW64 /d/DevelopProject/SunwayBlog (main)
+$ npx v0 add bdVP7vwEU0i
+√ What should we name the component? ... v0dev_ui
+✔ Done.
+
+```
+
+**由于本博客是基于 `Nextjs/React18` 的，所以直接拷贝 `Vercel V0` 生成的 `React` 代码；`Vue` 目前只能使用生成的 `HTML` 代码**
+
+执行完成后就可以看到项目中的 `Components目录` 导入了 `React代码` 中所依赖的各种`components组件`
+
+![VercelComponents](/static/images/VercelComponents.png)
+
+ps: 文件夹名已被 **Rename**
+
+-----------------------
+
+### 5 Use Code
+
+最后把 `example 1` 中的 `React` 代码复制粘贴到自己的博客项目中就可以用了，效果如下：
+
+![VercelInMyBlog](/static/images/VercelInMyBlog.png)
+
+
+-----------------------
+
+## 总结
+
+**想给博客做一个`收藏夹`功能，周末刚好看到这个自动生成前端代码的项目，就拿来试试**
+
+用户只需要提供 `Prompt` 或者 `Image` 就可以自动生成前端代码了（推特上看到有人通过Cloudflare截图复刻`Cloudflare Dashboard`界面）
+
+几个月前我还在各种 [TailWindCSS组件库](https://github.com/icopy-site/awesome-cn/blob/master/docs/awesome/awesome-tailwindcss.md) 中抄别人开源的前端代码，现在已经可以通过简单的 `Prompt` 写出好看的前端代码了，甚至可以通过 `Image` 完全复刻别人的网站了...
+
+本来想好好学习 `React` 的，但这种工具真的会影响的学习前端的积极性，这下真的变成 `Prompt 工程师` 了
+
+
+

@@ -4,9 +4,6 @@
  */
 import { CardTitle, CardDescription, CardHeader, CardContent, Card } from "@/components/vercel_ui/card"
 import Link from "next/link"
-import { Label } from "@/components/vercel_ui/label"
-import { Input } from "@/components/vercel_ui/input"
-import { Button } from "@/components/vercel_ui/button"
 
 export function v0dev_ui() {
   return (

@@ -21,6 +21,7 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
     "contentlayer": "0.3.4",
+    "dayjs": "^1.11.10",
     "esbuild": "0.18.11",
     "github-slugger": "^1.4.0",
     "gray-matter": "^4.0.2",

@@ -4,6 +4,7 @@ date: '2023-08-01'
 tags: ['Tech']
 draft: false
 summary: 看见世界
+lastmod: '2023-12-19'
 ---
 
 <TOCInline toc={props.toc} indentDepth ={3} fromHeading={1} toHeading={6} />
@@ -72,7 +73,7 @@ Telegram搜索: `@generatewarpplusbot` or 直接访问 [telegram机器人](https
 
 
 
-### 2.3 Wireguard Android & IOS
+### 2.3 Wireguard Android / IOS
 
 > 由于wireguard是通用客户端，配置也是通用配置，所以上面的配置文件是通用的，如果有windows电脑，直接将优选后的wireguard的配置文件界面右键-导出所有隧道，然后传给手机，手机上安装好wireguard客户端，导入文件，即可使用。[Source Blog](https://duangks.com/archives/124/)
 
@@ -108,6 +109,7 @@ Telegram搜索: `@generatewarpplusbot` or 直接访问 [telegram机器人](https
 - 需要 [购买自己的VPS](https://hostalk.net/deals.html)
 - 购买前需要评估厂家IP是否干净（干净的IP决定了搭建完成后是否能解锁 Netflix Chatgpt Bard Claude....）
 - 最好买三网线路良好的VPS，线路可以找开源的 [BenchMark](https://github.com/LemonBench/LemonBench) 进行测试，也可以自行`mtr -z $ip`测试（线路最重要，其次才是协议）
+- 不要买只提供 `IPV6` 的机子，除非厂家特别说明做了路线优化
 
 
 

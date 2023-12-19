@@ -11,6 +11,7 @@ const Card = ({title, linkList, imgSrc, extensions}) => (
                 {linkList.map((item, _) => (
                     <div>
                         <a href={item.href}
+                           target="_blank"
                            className="prose mb-3 max-w-none text-blue-500 dark:text-gray-400">{item.description}</a>
                         <br/>
                     </div>

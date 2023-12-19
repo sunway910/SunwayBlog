@@ -1,6 +1,6 @@
-import {v0dev_ui} from "@/components/vercel_component/v0dev_ui";
+import {V0dev_ui} from "@/components/vercel_component/V0dev_ui";
 import favoritesData from "@/data/favoritesData";
 
 export default function Component() {
-    return v0dev_ui("Funny Site", favoritesData[3])
+    return V0dev_ui("Funny Site", favoritesData[3])
 }

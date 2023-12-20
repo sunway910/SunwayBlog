@@ -63,6 +63,12 @@ const favoritesData = [
                 href: 'https://so1n.me/',
                 visit: 'Visit so1n Blog'
             },
+            {
+                title: '美团技术团队',
+                description: `美团有很多实践案例写得很不错`,
+                href: 'https://tech.meituan.com/',
+                visit: 'Visit Tech-MeiTuan'
+            },
         ],
         imgSrc: '',
         extensions: '/favorites/blog',
@@ -135,6 +141,36 @@ const favoritesData = [
                 description: `站长工具包罗万象`,
                 href: 'https://tool.chinaz.com/',
                 visit: 'Visit 站长工具'
+            },
+            {
+                title: 'Quarto',
+                description: `Transfer Markdown to PPTX/DOCX .etc`,
+                href: 'https://quarto.org/',
+                visit: 'Visit Quarto'
+            },
+            {
+                title: 'Excalidraw',
+                description: `有趣的在线画图工具(libraries扩展丰富，可以集成到开发工具)`,
+                href: 'https://excalidraw.com/',
+                visit: 'Visit Excalidraw'
+            },
+            {
+                title: 'DrawIO',
+                description: `支持AWS组件的在线绘图工具(可以集成到开发工具)`,
+                href: 'https://app.diagrams.net/',
+                visit: 'Visit DrawIO'
+            },
+            {
+                title: 'VisualParadigm',
+                description: `支持各类公有云组件的在线绘图工具(可以集成到开发工具)`,
+                href: 'https://online.visual-paradigm.com/',
+                visit: 'Visit VisualParadigm'
+            },
+            {
+                title: 'Vaultwarden',
+                description: `密钥管理工具`,
+                href: 'https://vaultwarden.us/',
+                visit: 'Visit Vaultwarden'
             },
         ],
         imgSrc: '',

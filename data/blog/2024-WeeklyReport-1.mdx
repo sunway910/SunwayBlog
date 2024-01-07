@@ -1,0 +1,62 @@
+---
+title: 2024 Weekly Report 1
+date: '2024-01-07'
+tags: ['Weekly Report']
+draft: false
+images: []
+summary: 2024第一周周报
+---
+
+<TOCInline toc={props.toc}/>
+
+## 工作上
+
+2024年第一周的工作主要都是网络相关的问题，干的让人烦躁
+
+### 2024第一个坑
+
+**网上没有看到有先例，Forti Community也没有找到答案，特此记录一下**
+
+<span style={{ color: 'blue' }}> 网络链路： Client (Internet) ->  Forti (WAN) -> Forti (LAN) -> SLB -> Server </span>
+
+<br></br>
+<br></br>
+<span style={{ color: 'red' }}> 问题描述： 链路不通，流量在Forti上被错误的转发 </span>
+
+在Forti上 Debug 发现流量从 `Port1(WAN口)` 进来后，又从 `Port1(WAN口)` 出去了，没有匹配策略流向 `Port2(LAN口)` 进入内网，最终的结果就是被默认策略 Policy 0 拒绝， Debug 效果如下图所示：
+
+
+<img  style={{margin: "0 ", display: "inline-block "}} src="/static/images/FotigatePort1ToPort1.png" width="700" />
+
+百思不得其解，为什么写了流量策略却根本没有命中策略，流量根本去到内网；而直接转发到服务器上却没有任何问题，导致我这个猪比在Forti和SLB做了半天无用功
+
+最终发现 原来 Fortigate WAN口 的网段和 SLB 的网段重叠了，**所有访问 10.210.8.0/24 和 10.210.9.0/24 网段的流量都是直连的，** 不会走自定义策略
+
+<img  style={{margin: "0 ", display: "inline-block "}} src="/static/images/FortigateRouteDefault.png" width="800"/>
+
+![SLBAfterFortigate](/static/images/SLBAfterFortigate.png)
+
+总结： SLB的IP `10.210.8.117`和Fortigate的WAN口的私网地址 `10.210.8.1`都处于`10.210.8.0/24`网段；创建SLB时没注意绑定的交换机，把`SLB`和`Fortigate`的绑定到同一个交换机上去了
+
+解决方案：换个SLB，给SLB绑定正确的交换机
+
+
+
+## 生活上
+
+- 这周回深圳了，暖和不少
+- 看完了韩剧`死期将至`，觉得非常不错，感觉韩剧在讲述人性这方面真的厉害，有太多韩国影视作品给我留下了深刻印象，这是2024的第一部让我印象深刻的韩剧。但我感受到的现状是：在自杀的人中，大部分人的原生家庭并不幸福，TA没有爱TA的服务，没有爱TA的另一半，当TA一跃而下时，并不会对爱TA的人感到愧疚，因为没人爱TA。
+- 周末大乱斗总是随机到我喜欢玩的英雄，运气爆棚
+- 希望有一天我能心安理得的"摆烂一天"而丝毫不感到愧疚，但现在的我还做到
+
+<BilibiliEmbed src={"//player.bilibili.com/player.html?aid=918626686&bvid=BV1du4y1L78X&cid=1339134336&p=1"} />
+
+## 学习上
+
+- 学不进一点，下周再学
+
+
+
+
+
+

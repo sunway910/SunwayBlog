@@ -80,8 +80,8 @@ $ cat /etc/lsyncd.conf
 ...
 sync {
    default.rsync,
-   source = "/app/local/data/source",
-   target = "/app/local/data/destination",
+   source = "/app/local/data/source/",
+   target = "/app/local/data/destination/",
 }
 ```
 
@@ -92,9 +92,15 @@ sync {
    default.rsync,
    source = "/app/local/data/source/",
    target = "/app/local/data/destination/",
+   rsync = {
+      binary = "/usr/bin/rsync",
+      archive = true,
+      _extra = {"--recursive"},
+   },
 }
 ```
-**lsyncd如果不在目录最后加 / 的话是不会递归同步子目录的**
+**lsyncd是一个 `rsync + inotify` 工具， `rsync` 提供了 `-r recursive` 参数来递归同步；或者使用 `-a archive` 参数来同步归档子目录，除了可以递归同步以外，还可以同步元信息（比如修改时间、权限等），比 `-r` 参数更加有效。
+[官方文档](https://lsyncd.github.io/lsyncd/manual/config/layer4/)甚至没给这个`archive = true`和 `_extra = {"--archive"}` 有什么区别，没有为这个参数添加comment**
 
 
 <span style={{ color: 'blue' }}>同步脚本是GPT写的，验证测试的时候只验证了根目录下的同步，没有验证子目录下的同步，还好没出大问题。一周在反斜杠/的问题上栽倒2次，我是真的菜</span>

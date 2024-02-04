@@ -194,7 +194,7 @@ $ curl -sSL https://github.com/seagullz4/hysteria2/raw/main/install.sh -o instal
 
 ![DeleteClient](/static/images/DeleteClient.png)
 
-[可以顺便看看Tuic作者的这篇文章，振聋发聩](https://www.eaimty.com/2023/opensource-project-based-on-hormone/)
+[可以顺便看看 Tuic 作者的这篇文章，振聋发聩](https://www.eaimty.com/2023/opensource-project-based-on-hormone/)
 
 ### 3.3 V2ray转Clash
 
@@ -210,10 +210,10 @@ $ curl -sSL https://github.com/seagullz4/hysteria2/raw/main/install.sh -o instal
 
 <span style={{ color: 'red' }}>Port 被墙</span>
 
-如V2ray日志提示 net/http:TLS handshake timeout 则极有可能端口被[GFW](https://gfw.report/publications/usenixsecurity23/zh/ "GFW")封了，
+如V2ray日志提示 `net/http:TLS handshake timeout` 则极有可能端口被[GFW](https://gfw.report/publications/usenixsecurity23/zh/ "GFW")封了，
 可以通过网站 `tcp.ping.pe` ,输入自己的`ip:port`进行检测（这种情况一般在使用`V2ray+ Nginx + WebSocket`且没有使用CF前置代理时出现）
 
-**如下图可以发现我的IP的 55547 端口在墙内已经无法连接，但其他世界各地的机器可以正常和我节点的55557端口建立连接**
+**如下图可以发现我的IP的 55547 端口在墙内已经无法连接，但其他世界各地的机器可以正常和我节点的 55557 端口建立连接**
 
 ![GfwIpBan](/static/images/GfwIpBan.png)
 
@@ -223,14 +223,14 @@ $ curl -sSL https://github.com/seagullz4/hysteria2/raw/main/install.sh -o instal
 
 <span style={{ color: 'red' }}>IP 被墙</span>
 
-IP被墙可以通过网站 `ping.ce` 检测，墙了就找厂家提工单换IP，重新配置`DNS`解析等配置
+IP 被墙可以通过网站 `ping.ce` 检测，墙了就找VPS厂家提工单换 IP，重新配置`DNS`解析等配置
 
 -------------
 
 <span style={{ color: 'red' }}>减少被墙的方法</span>
 
 
-建议在CF中配置SSL前置代理
+建议在 CF 中配置 SSL 前置代理
 
 通过实验，如果不开启CF前置代理，那么端口极有可能每天一封，就是白天使用正常，睡一觉醒来端口就被墙了
 
@@ -242,7 +242,7 @@ IP被墙可以通过网站 `ping.ce` 检测，墙了就找厂家提工单换IP�
 
 <span style={{ color: 'red' }}>我的最佳实践</span>
 
-- 移动端安装V2rayNG使用 `Reality` ，PC端 Clash 使用 `V2ray+ Nginx + WebSocket + CF前置`
+- 移动端安装`V2rayNG`使用 `Reality` ，PC端 Clash 使用 `V2ray+ Nginx + WebSocket + CF前置`
 - 移动端和PC端都是用 `Hy2`
 
 -------------
@@ -251,18 +251,18 @@ IP被墙可以通过网站 `ping.ce` 检测，墙了就找厂家提工单换IP�
 
 ## 4 买梯子/上机场
 
-买过 [QuickQ](https://www.quickq.io/) 的服务，用来购买 `Google Colab Pro`
+买过 [QuickQ](https://www.quickq.io/) 的服务，用来代理到 USA 来购买 `Google Colab Pro`
 
-<span style={{ color: 'red' }}>网上可搜到有很多的便宜的机场和各式各样的工具，它们很方便，适合小白；但如果有一定能力的话，不推荐这种方式，因为从隐私 & 安全的角度讲，我们不能确保它们是中立的工具</span>
+<span style={{ color: 'red' }}>网上可搜到有很多便宜的机场和各式各样的工具，很方便，适合小白；但如果有一定能力的话，不推荐这种方式，因为从隐私 & 安全的角度讲，不能确保它们是中立的工具</span>
 
 
 
 
 ## 5 Google Extensions
 
-[Google应用商店](https://chromewebstore.google.com/) 搜索相关谷歌上网助手插件
+[Google应用商店](https://chromewebstore.google.com/) 搜索相关谷歌上网助手插件，非常简单方便，类似于机场的付费订阅模式。这种浏览器插件的方式可以只让浏览器科学上网，而不影响系统全局流量策略；当然也可以在这个插件的官网下载`win、app`等客户端来实现全局翻墙。
 
-只用过 [iGuge Helper](https://iguge.net/)，使用教程：打开扩展程序的`开发者模式`，把[crx文件](https://drive.google.com/file/d/1qeOwx_HQxSGNwCtJ4VEQw4C8QDPgz2ae/view)拖入其中即可安装完成
+用过 [iGuge Helper](https://iguge.net/)，使用教程：打开浏览器扩展程序界面的`开发者模式`，把 [crx文件](https://drive.google.com/file/d/1qeOwx_HQxSGNwCtJ4VEQw4C8QDPgz2ae/view) 拖入其中即可安装完成
 
 
 ![GoogleExtensionsVpn](/static/images/GoogleExtensionsVpn.png)
@@ -271,3 +271,16 @@ IP被墙可以通过网站 `ping.ce` 检测，墙了就找厂家提工单换IP�
 ## 6 海外SIM卡漫游
 
 如果有渠道可以托人代理买到海外的SIM卡，不过国际漫游的费用普遍很贵
+
+
+## 7 软路由
+
+自己搭建软路由，可以参考我搭建软路由的 [Blog](https://blogs.runsunway.com/blog/Software-Based-Router)
+
+前提条件：
+- 1 硬件: 购买合适的路由器或者主机（二选一）
+    - 1.1 一台家用路由器，这个路由器类型最好能在[官网](https://firmware-selector.openwrt.org/)找到与自己的路由器相匹配的固件，不然只能找人定制
+    - 1.2 一个小主机，以`X86/64`类型的小主机为例，可以在[官网](https://firmware-selector.openwrt.org/?version=23.05.2&target=x86%2F64&id=generic)找到对应的固件
+- 2 软件：已有能翻墙的节点（二选一）
+    - 2.1 订阅机场后可以拿到机场订阅连接
+    - 2.2 购买VPS自建节点后可以生成`vmess、hy2`等订阅链接

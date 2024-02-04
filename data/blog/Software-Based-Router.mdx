@@ -1,0 +1,172 @@
+---
+title: Software-Based Router
+date: '2024-02-02'
+tags: ['Tech']
+draft: false
+summary: 家庭网络改造计划，软路由踩坑记
+---
+
+<TOCInline toc={props.toc} indentDepth ={3} fromHeading={1} toHeading={6} />
+
+## 1 Xiaomi-Router-4C OpenWRT
+
+详情可以参考 [openwrt 官网的刷机教程](https://openwrt.org/toh/xiaomi/xiaomi_mi_router_4c)
+
+步骤大概分为3步：
+
+- **1: 跑 py 脚本，通过 telnet 进入 terminal**
+- **2: 通过 wget 把 固件 下载到 /tmp 目录下**
+- **3: 通过命令 `mtd -r write /tmp/openwrt.bin OS1` 写盘重装系统**
+
+我这里参考的是[一位 up 的方法](https://www.bilibili.com/video/BV1Ga41157ho)，通过 `ftp://192.168.1.1` 直接固件传输到路由器的 `/tmp` 目录下了，没有去跑Py脚本，这种方法只需要在联网的条件下以管理员的身份运行文件: `0.start_main.bat` 来为路由器安装 `ftp` 即可 ，[文件下载](https://drive.google.com/drive/folders/1aNzALiPwwGCYljuwjL38TmY9a4U683_J?usp=sharing)
+
+**Openwrt 系统安装完成后，进入管理界面如下图所示：**
+
+![XiaomiRouter4cOpenwrt](/static/images/XiaomiRouter4cOpenwrt.png)
+
+如上图所示，Xiaomi 4C 的 overlay 分区只有不到 10M，根本没有足够的空间安装 `V2ray OpenClash` 等插件
+
+
+<span style={{ color: 'red' }}> 总结： 这个是为了装软路由而安装的软路由，事先没有调研这个路由器的硬件配置是否足够，导致我的 `Xiaomi 4c Router` 安装完 `Openwrt` 后才发现它这个硬盘空间这么小，好在这个路由器是闲置的路由器 </span><br></br>
+
+----------------------
+
+
+## 2 PW-550 ImmortalWRT
+在有了安装 `Xiaomi Router 4C OpenWRT` 的经验后，我连夜在咸鱼上花130买了一个 `PW-550 X86/64 CPU-N3060` 的小主机，下单后直接去线下自提了这个软路由，原主人是在这台小主机的硬盘上安装的[爱快软路由](https://www.ikuai8.com/)，而我想使用的是 `OpenWRT` 或者 `ImmortalWRT`，所以我还需要换个软路由
+
+`PW-550` 应该是是个套牌组装的小主机，网上能搜到的信息很少，[它的官网](http://mamami.mobi/productDetail_shangWIFI.html)也没有详细的介绍，尝试了很多键位才知道这个小主机的主板是按 `F2` 进入 `BIOS`
+
+关于 `PW-550` 的介绍可以参考 [Youtube](https://www.youtube.com/watch?v=Mh_8ZzomU3s)
+
+<YoutubeEmbed embedId={"Mh_8ZzomU3s"} />
+
+----------------------
+
+
+### 2.1 安装 SuLingGG X86 开源固件
+安装这个[开源固件](https://github.com/SuLingGG/OpenWrt-Rpi/releases)的原因是因为我在 [恩山论坛](https://www.right.com.cn/forum/) 上开到有很多人推荐，而且它的插件集成做的很不错，可以省很多事
+
+- **步骤1:** 用 [etcher](https://etcher.balena.io/) 或者 [rufus](https://rufus.ie/en/) 将固件烧录到U盘，注意此步骤会清空U盘中的源文件
+
+- **步骤2:** 给小主机插上 U盘，键盘，HDMI显示器后通电开机
+
+- **步骤3:** 在开机过程中狂按 `F2` 进入 `BIOS`，然后选择从 `U盘` 中加载系统，而非从硬盘中加载系统
+
+- **步骤4:** 重新开机，X86小主机的开机系统即可从`ikuai(硬盘)`切换到`OpenWRT(U盘)`
+
+- **步骤5:** 修改 `/etc/config/network` 把 LAN 口的网段从 `192.168.1.1/24` 改为 `192.168.2.1/24`，因为我家光猫通过 `PPPOE` 拨号获取公网IP，它的`LAN口`网段就是 `192.168.1.1/24`，怕到时客户端通过`DHCP`服务器获取`IP`时产生IP冲突导致客户端断网，所以修改软路由`LAN口`的网段
+
+- **步骤6:** 修改完成后执行 `/etc/inid.d/network reload` 重启网络即可，然后可以在 `Windows CMD Terminal` 通过 `ipconfig` 看到电脑已经分配了 `192.168.2.0/24` 网段中的一个IP
+
+**线路拓扑解析如下**
+
+- 1 **运营商 -> 光猫 WAN口** (光猫PPPOE拨号获取WAN口IP，光猫LAN口网段为 192.168.1.1/24)
+- 2 **光猫 LAN口 -> 软路由 WAN口** (PW-550 WAN口为192.168.1.1/24，LAN口为192.168.2.1/24)
+- 3 **软路由 LAN口 -> Windows主机网线接口**
+
+
+
+至此，我可以在我的电脑上通过访问 `192.168.1.1` 访问光猫的管理控制台，可以通过 `192.168.2.1` 访问软路由 `OpenWRT` 的管理控制台
+
+![SuLinGGOpenwrt](/static/images/SuLinGGOpenwrt.png)
+
+**踩坑如下：**
+
+1: 按 `F2` 进入 `PW-550` 的 `BIOS`，不是 `Delete F11` ......
+
+2: 刷成软路由后，`WAN口` 和 `LAN口` 是由软件定义的，如果电脑通过网线连接软路由后获得IP为 `169.254.x.x/16` 则说明线接错口了，可以在软路由的终端通过 `ip a` 命令查看软路由是否通过`DHCP`从光猫获取到了`WAN口 IP`，至于为什么从 `dhcp` 获取`IP`失败后会 拿到一个 `169.254.x.x/16` 的 `Ip` 可以自行查阅
+![OpenWRTIPA](/static/images/OpenWRTIPA.png)
+
+
+**`SuLinGG` 开源的固件到 `18.06` 版本就不再更新了，官网最新的 `ImortalWRT X86` 固件已经升级到了 `23.05` 版本了，版本落后太多，而且安装到我的小主机上时出现了一些小问题，最终还是放弃了这个固件**
+
+**如下图所示，系统日志发现这个开源的`18.06`版本无法执行某些 `cron Job`；无法打开 `ttyd` 终端，`192.168.2.1:7681` ttyd服务启动失败；集成了太多的我不需要的插件...**
+
+**日志错误如下图所示**
+![SuLinGGLogErr](/static/images/SuLinGGLogErr.png)
+
+**功能集成如下图所示**
+<center >
+    <figure>
+        <img  style={{margin: "0 ", display: "inline-block "}} src="/static/images/SuLinGGMenu1.png" width="175" />
+        <img  style={{margin: "0 ", display: "inline-block "}} src="/static/images/SuLinGGMenu2.png" width="175"/>
+        <img  style={{margin: "0 ", display: "inline-block "}} src="/static/images/SuLinGGMenu3.png" width="175"/>
+        <img  style={{margin: "0 ", display: "inline-block "}} src="/static/images/SuLinGGMenu4.png" width="175"/>
+    </figure>
+</center>
+
+-------------------
+
+### 2.2 安装官方 X86 开源固件
+因为 [SuLinGG开源固件](https://github.com/SuLingGG/OpenWrt-Rpi/releases) 版本太老，且出现了一些未知的问题，所以我还是决定去安装 [官方的开源固件](https://firmware-selector.openwrt.org/?version=23.05.2&target=x86%2F64&id=generic)
+
+
+- **步骤1:** 因为U盘中已经刷入了 `SuLinGG 18.06 X86` 的系统了，所以需要先安装 [rufus](https://rufus.ie/en/) 把 `U盘` 刷成非引导盘
+![RufusClean](/static/images/RufusClean.png)
+
+- **步骤2:** 用 [etcher](https://etcher.balena.io/) 或者 [rufus](https://rufus.ie/en/) 将官方最新的固件烧录到U盘
+
+- **步骤3:** 在开机过程中狂按 `F2` 进入 `BIOS`，然后选择从 `U盘` 中加载系统，而非从硬盘中加载系统
+
+- **步骤4:** 重新开机，系统即可从`ikuai(硬盘)`切换到`OpenWRT(U盘)`
+
+- **步骤5:** 修改 `/etc/config/network` 把 LAN 口的网段从 `192.168.1.1/24` 改为 `192.168.2.1/24`，因为我家光猫通过 `PPPOE` 拨号获取公网IP，它的`LAN口`网段就是 `192.168.1.1/24`，怕到时客户端通过`DHCP`服务器获取`IP`时产生IP冲突导致客户端断网，所以修改软路由`LAN口`的网段
+
+- **步骤6:** 修改完成后执行 `/etc/inid.d/network reload` 重启网络即可，然后可以在 `Windows CMD Terminal` 通过 `ipconfig` 看到电脑已经分配了 `192.168.2.0/24` 网段中的一个IP
+
+刷成官方最新的 `23.05` 版本如下图所示
+
+![ImmortalWRT2305](/static/images/ImmortalWRT2305.png)
+
+
+## 3 Pass Wall Configuration
+
+软路由集成了很多插件如 `V2ray Xray OpenClash HomeProxy PassWall ...` ，这里以配置 `OpenClash` 为例
+
+- **步骤1:** 在管理界面更新 `opkg` 索引
+
+- **步骤2:** 搜索 `OpenClash` 并安装 `openclash` 客户端
+
+- **步骤3:** 在客户端界面安装 `clash` 内核
+![OpenClashCoreConfig](/static/images/OpenClashCoreConfig.png)
+
+- **步骤4:** 导入自建的 `vmess` 节点
+![OpenClashConfig](/static/images/OpenClashConfig.png)
+
+- **步骤5:** 启动OpenClash，查看是否启动正常，启动成功后可通过 `http://192.168.2.1:9090` 访问 `OpenClash` 的 `DashBoard` 查看相关配置
+![OpenClashDashboard](/static/images/OpenClashDashboard.png)
+
+- **步骤6:** 由于`PW-550`没有 `WIFI功能`，所以将网线从 `PW-550 LAN 口` 接到 `Xiaomi Router 4C WAN 口`，登录小米路由器的`管理界面`或者`terminal`，配置WIFI功能并将小米路由器的LAN口网段改为 `192.168.3.1/24`
+
+- **步骤7:** 将电脑连接至小米路由器的WIFI，通过 ipconfig 查看分配的IP是否为 `192.168.3.1/24`
+![XiaomiWifiIPConfig](/static/images/XiaomiWifiIPConfig.png)
+
+- **步骤8:**关闭电脑的所有代理工具，测试只通过连接小米路由器的WIFI是否能科学上网
+
+
+
+**最终网络拓扑如下**
+
+- 1 **运营商 -> 光猫 WAN口** (光猫PPPOE拨号获取WAN口IP，光猫LAN口网段为 192.168.1.1/24)
+- 2 **光猫 LAN口 -> PW-550 软路由 WAN口** (PW-550 WAN口为192.168.1.1/24，LAN口为192.168.2.1/24)
+- 3 **软路由 LAN口 -> 小米Router 4C WAN 口** (Xiaomi Router WAN口为192.168.2.1/24，LAN口为192.168.3.1/24)
+- 4 **小米Router 4C WIFI -> 电脑等其他客户端** (电脑等其他所有连接该WIFI后通过DHCP获取的IP为192.168.3.1/24)
+
+**踩坑如下**
+
+1: `OpenClash` 内核安装失败，可以通过`覆写设置`不断切换 `Github CDN` 来下载，或者手动下载再通过`ftp、scp`等工具上传到软路由系统的对应目录
+
+2: 安装 `ttyd terminal`后在`UI`中看不到，可以在 `ssh客户端如xshell` 连接上去看 `ttyd` 服务是否有在监听 `7681` 端口，可以通过 `/etc/init.d/ttyd reload` 重启服务，或者通过 `192.168.2.1:7681` 直接访问尝试
+
+
+
+## 4 Summary
+
+<span style={{ color: 'red' }}> 查看最终网络拓扑可以发现客户端网络到运营商至少包括了3层NAT，甚至运营商大内网可能还有几层NAT，所以还有很多可以优化的地方，不过目前至少是把整个流程跑通了，对整个家庭网络拓扑有了清晰的概念，在此非常感谢 GFW  </span><br></br>
+
+
+
+PS: 非常感谢不良林提供的指引
+<YoutubeEmbed embedId={"JfSJmPFiL_s"} />
+

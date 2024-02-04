@@ -24,7 +24,7 @@ summary: 家庭网络改造计划，软路由踩坑记
 
 ![XiaomiRouter4cOpenwrt](/static/images/XiaomiRouter4cOpenwrt.png)
 
-如上图所示，Xiaomi 4C 的 overlay 分区只有不到 10M，根本没有足够的空间安装 `V2ray OpenClash` 等插件
+如上图所示，`Xiaomi 4C` 的 `overlay` 分区只有不到 10M，根本没有足够的存储空间安装 `V2ray OpenClash` 等插件，有人也遇到了[同样的问题](https://github.com/vernesong/OpenClash/discussions/2937)
 
 
 <span style={{ color: 'red' }}> 总结： 这个是为了装软路由而安装的软路由，事先没有调研这个路由器的硬件配置是否足够，导致我的 `Xiaomi 4c Router` 安装完 `Openwrt` 后才发现它这个硬盘空间这么小，好在这个路由器是闲置的路由器 </span><br></br>
@@ -142,7 +142,7 @@ summary: 家庭网络改造计划，软路由踩坑记
 - **步骤7:** 将电脑连接至小米路由器的WIFI，通过 ipconfig 查看分配的IP是否为 `192.168.3.1/24`
 ![XiaomiWifiIPConfig](/static/images/XiaomiWifiIPConfig.png)
 
-- **步骤8:**关闭电脑的所有代理工具，测试只通过连接小米路由器的WIFI是否能科学上网
+- **步骤8:** 关闭电脑的所有代理工具，测试只通过连接小米路由器的WIFI是否能科学上网
 
 
 

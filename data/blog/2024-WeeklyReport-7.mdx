@@ -1,0 +1,84 @@
+---
+title: 2024 Weekly Report 7
+date: '2024-02-18'
+tags: ['Weekly Report']
+draft: false
+images: []
+summary: 2024第7周周报
+---
+
+<TOCInline toc={props.toc}/>
+
+## 工作上
+
+Null
+
+## 生活上
+
+- **1** 鞭炮买多了，还有一点没完，放弃了
+
+- **2** 爷爷养了一只黄色小土狗，过年半个月，肉眼可见的长大了，活泼可爱，喜欢咬别人的裤脚，怕他被村里人吃了，以后有机会还是要带过来 `绝育+打疫苗`
+
+- **3** 终于过完年了，在村里度日如年，每天耗时间到晚上9点睡觉，感觉在村里生活时间过的真的很慢
+
+- **4** 过年期间村里有2位老人去世，一位不认识，一位认识；认识的那位去世前一天我晚上还去他家串门看望了他，结果第二天早上就过世了，生命可以很坚强也可以很脆弱。`人生除死无大事！`
+
+- **5** 村里2位老人过世做了5天法事，吃了5天席；我认识的这位老人后事总计花费近 10W CNY，抵去人情收入好像多花了两千多，现在才发现人情费可以有这么多。希望以后一切从简，别搞这些东西了。（一大早放烟花、鞭炮、三响炮真的让人烦躁）
+
+- **6** 买 `Coinbase` 股票赚了 200$ ；经过几次高位接盘和卖飞的经历后，忍住手没有去高位接盘`#SMCI`，不然要亏惨。股市盯盘很耗费我的精力，怕错过高位点，提心吊胆，焦虑加重，刚好者周末赌场关门3天，可以冷静一下。年后大A的开门红也懒得去凑热闹了，接下来不知道要不要去赌`#C3.AI #Grab #NVDA...`的财报、继续买`#TSLA`、还是去试试期权。（币市这种不关门的赌场是不是更让人心力憔悴？）
+
+- **7** 有人来堂姐家里相亲，男方表示结婚立马买房，堂姐私下和我说："30多岁没房、没车、没社保、没未来，这怎么行？"（村里人喜欢做媒，他们不管好与坏，因为这都将成为他们饭后津津乐道的谈资）
+
+- **8** 在村里带了半个月，发现村里的流言蜚语特别多，喜欢八卦，喜欢背后议论别人，喜欢聊东家长西家短，聊得不亦乐乎，造成不少的悲剧，真是`人言可畏`！。
+
+## 学习上
+
+- 学了一些股市的基本概念并进行了实操
+
+- 修了一个本博客的Bug
+
+如下图所示，我博客是基于`NextJS`的，打包成静态文件中有一个个的 `*.html` 文件
+![NextjsPKG](/static/images/NextjsPKG.png)
+
+错误的配置是：
+```
+server {
+     listen 80;
+     root /apps/blog/build;
+     server_name blogs.runsunway.com;
+     location / {
+        index index.html;
+        try_files $uri /$uri /index.html;
+     }
+}
+```
+
+正确的配置如下：
+
+```
+server {
+     listen 80;
+     root /apps/blog/build;
+     server_name blogs.runsunway.com;
+     location / {
+        index index.html;
+        try_files $uri $uri.html /$uri /index.html;
+     }
+}
+```
+
+`try_files` 配置多加一个`$uri.html`以便于直接通过`URL`访问特定的博客
+
+比如直接访问这篇博客: https://blogs.runsunway.com/blog/Software-Based-Router
+
+如果不加`$uri.html`则无法匹配在`root /apps/blog/build`下匹配正确的`URI`，会根据`try_files /index.html`规则直接跳转 `index.html 首页`
+
+不加`$uri.html`就只能在`URL`后补全`.html`：https://blogs.runsunway.com/blog/Software-Based-Router.html
+
+
+
+
+
+
+
+

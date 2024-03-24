@@ -1,0 +1,56 @@
+---
+title: How to use Fortigate Load Balancer
+date: '2024-03-22'
+tags: ['Tech']
+draft: false
+summary: Use Fortigate To Implement A Load Balancer
+---
+
+<TOCInline toc={props.toc}/>
+
+## 1 Enable Load Balance Feature
+
+
+![EnableLoadBalanceFeature](/static/images/EnableLoadBalanceFeature.png)
+
+## 2 Import a Certificate
+
+You can import your own certificate to implement your custom https connection
+
+![FortiImportCA](/static/images/FortiImportCA.png)
+
+
+## 3 Create a Virtual Server
+
+### Create a http virtual server
+If you do not have your own certificate and do not want to use fortigate default certificate, you can set to `http` type
+![FortiVirtualServer](/static/images/FortiVirtualServer.png)
+
+### Create a https virtual server
+If you import your own certificate, your can set to `https` type and select your own certificate; otherwise, your can use fortigate default certificate to implement a https connection
+![FortiVirtualServerHttps](/static/images/FortiVirtualServerHttps.png)
+
+**SSL Mode:**
+- `Client <-> FortiGate`: Client(https) --> Fortigate(https) --> Server(http)
+- `Full`: Client(https) --> Fortigate(https) --> Server(https)
+
+
+
+## 4 Redirect http to https
+
+Redirect 80 to 443 so that client can auto access to https://uat.example.com from  http://uat.example.com
+
+![Forti80To443](/static/images/Forti80To443.png)
+
+## 5 Add DNS Record
+
+Add `uat.example.com` and `prd.example.com`'s type A resolution to Fortigate WAN IP.
+
+## 6 Summary
+Finally, you can implement an architecture like that:
+
+![FortiVirtualServerArchitecture](/static/images/FortiVirtualServerArchitecture.png)
+
+In my case, the IP `10.210.0.2` is a real server in internal network, but IP `10.210.11.170` is a SLB in AlibabaCloud
+
+

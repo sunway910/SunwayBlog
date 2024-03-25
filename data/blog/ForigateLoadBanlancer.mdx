@@ -26,6 +26,7 @@ You can import your own certificate to implement your custom https connection
 If you do not have your own certificate and do not want to use fortigate default certificate, you can set to `http` type
 ![FortiVirtualServer](/static/images/FortiVirtualServer.png)
 
+
 ### Create a https virtual server
 If you import your own certificate, your can set to `https` type and select your own certificate; otherwise, your can use fortigate default certificate to implement a https connection
 ![FortiVirtualServerHttps](/static/images/FortiVirtualServerHttps.png)
@@ -34,19 +35,23 @@ If you import your own certificate, your can set to `https` type and select your
 - `Client <-> FortiGate`: Client(https) --> Fortigate(https) --> Server(http)
 - `Full`: Client(https) --> Fortigate(https) --> Server(https)
 
-
-
 ## 4 Redirect http to https
 
-Redirect 80 to 443 so that client can auto access to https://uat.example.com from  http://uat.example.com
+Add a Firewall Policy to redirect 80 to 443 so that client can auto access to https://uat.example.com from  http://uat.example.com
 
 ![Forti80To443](/static/images/Forti80To443.png)
 
-## 5 Add DNS Record
+## 5 Use virtual server to create firewall policy
+
+You must select `Proxy-based` mode so that you can find `virtual server` in policy `Destination`
+
+![FortiVirtualServerPolicy](/static/images/FortiVirtualServerPolicy.png)
+
+## 6 Add DNS Record
 
 Add `uat.example.com` and `prd.example.com`'s type A resolution to Fortigate WAN IP.
 
-## 6 Summary
+## 7 Summary
 Finally, you can implement an architecture like that:
 
 ![FortiVirtualServerArchitecture](/static/images/FortiVirtualServerArchitecture.png)

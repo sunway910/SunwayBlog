@@ -1,0 +1,38 @@
+---
+title: 2024 Weekly Report 14
+date: '2024-04-07'
+tags: ['Weekly Report']
+draft: false
+images: []
+summary: 2024第14周周报
+---
+
+<TOCInline toc={props.toc}/>
+
+## 工作
+
+- **1** 一直薅 `CloudFlare` 的羊毛，没想到这次被 `CloudFlare` 薅羊毛了。分两次购买 `Load Balancing` 服务，第一次支付了25刀后启用了 `Load Balancing` 的 `Check from 4 region` and `Traffic Steering` 服务，第二次支付10刀购买多余2个源服务器的服务，结果这两个功能消失了：`Check from 4 region` and `Traffic Steering`，现在还在和 cloudflare support 拉扯中
+- **2** 接上回，内核因 `OOM` 把容器 `kill` 掉后， `containerd` 没有感知到进程已被杀死，`docker ps` 和 `ss -antl` 仍能看到容器和端口监听的存在。添加健康检查和自愈后已能拉起被 `kill` 的容器
+- **3** 波卡的链感觉对用户不太友好，找了半天连个日志相关的配置都没有，还得我自己来搞；链的 max-connections 默认 2000，服务器的 ulimit 也没配置，难怪上服务器看连接数这么少，用户却说连不上链
+
+
+
+## 生活
+
+- 感冒了，打喷嚏且喉咙有痰，这周的状态都不好
+- 清明时节雨纷纷，天气不好，假期基本呆在家里躺平
+- 又去山姆进货了，青柠 西柚汁很好喝，买的卤猪蹄也不错
+- 美股这周回本了，再也不贸然碰我未知的领域了
+
+
+
+## 学习
+
+- null
+
+
+
+
+
+
+

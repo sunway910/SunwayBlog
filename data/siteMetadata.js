@@ -7,11 +7,11 @@ const siteMetadata = {
   language: 'en-us',
   theme: 'system', // system, dark or light
   siteUrl: 'https://blogs.runsunway.com',
-  siteRepo: 'https://github.com/0utsiderZhong/SunwayBlog',
+  siteRepo: 'https://github.com/sunway910/SunwayBlog',
   siteLogo: '/static/images/logo.png',
   socialBanner: '/static/images/twitter-card.png',
   email: 'shengweizhong910@gmail.com',
-  github: 'https://github.com/0utsiderZhong',
+  github: 'https://github.com/sunway910',
   twitter: 'https://twitter.com/Twitter',
   facebook: 'https://facebook.com',
   youtube: 'https://youtube.com',

@@ -1,0 +1,240 @@
+---
+title: nextTrace
+date: '2024-05-08'
+tags: ['Tech']
+draft: false
+summary: Use nexttrace in mainland instead of mtr
+---
+
+<TOCInline toc={props.toc}/>
+
+I used to using `mtr` to do traceroute and network troubleshooting, but suddenly I found a better tool `nexttrace`. I tried it and found that its really suit for VPS TEST.
+
+Intro: `NextTrace` uses the `ICMP` protocol to perform TraceRoute requests by default, which supports both `IPv4` and `IPv6`, Get more information from: https://github.com/nxtrace/NTrace-core
+
+# How to install
+```bash
+curl nxtrace.org/nt | bash
+```
+
+# Common Usage
+
+
+## IPv4 ICMP Trace
+
+```bash
+nexttrace 1.1.1.1
+```
+
+**Test: singapore-server icmp traffic to cloudflare edge node**
+```text
+IP Geo Data Provider: LeoMoeAPI
+traceroute to 1.1.1.1, 30 hops max, 52 bytes packets
+1   103.164.54.11   AS141995 [CONTABO-ASIA]   新加坡    contabo.com
+    ip-103-164-54-11.static.contabo.net       0.87 ms / 0.39 ms / 0.35 ms
+2   62.115.179.206  AS1299   [ARELION-NET]    新加坡    arelion.com
+                                              0.51 ms / 0.54 ms / 0.72 ms
+3   *
+4   *
+5   62.115.181.151  AS1299   [ARELION-NET]    新加坡    arelion.com
+    cloudflare-ic-350354.ip.twelve99-cust.net   1.81 ms / 1.41 ms / * ms
+6   *
+7   1.1.1.1         AS13335                   CLOUDFLARE.COM    cloudflare.com
+    one.one.one.one                           1.10 ms / 1.25 ms / 1.07 ms
+MapTrace URL: https://assets.nxtrace.org/tracemap/2ace1140-2dba-56a1-88cc-49934491f592.html
+```
+
+## IPv4 TCP Trace
+
+```bash
+# TCP SYN Trace
+nexttrace --tcp www.google.com
+# nexttrace --tcp --port 443 $ip/$url
+```
+**Test: singapore-server tcp traffic to google.com**
+```text
+NextTrace v1.3.0 2024-04-18T06:38:21Z 2cb13be
+[NextTrace API] preferred API IP - 104.21.40.176 - 191.10ms - Misaka.HKG
+Please Choose the IP You Want To TraceRoute
+0. 64.233.170.103
+1. 64.233.170.106
+2. 64.233.170.99
+3. 64.233.170.105
+4. 64.233.170.104
+5. 64.233.170.147
+6. 2404:6800:4003:c1a::67
+7. 2404:6800:4003:c1a::69
+8. 2404:6800:4003:c1a::68
+9. 2404:6800:4003:c1a::6a
+Your Option:
+IP Geo Data Provider: LeoMoeAPI
+traceroute to 64.233.170.103 (www.google.com), 30 hops max, 52 bytes packets
+1   103.164.54.11   AS141995 [CONTABO-ASIA]   新加坡    contabo.com
+    ip-103-164-54-11.static.contabo.net       0.49 ms / 0.28 ms
+    103.164.54.12   AS141995 [CONTABO-ASIA]   新加坡    contabo.com
+    ip-103-164-54-12.static.contabo.net       0.68 ms
+2   103.16.102.188  AS15169  [SGIX]           新加坡   SGIX - Google LLC - 100Gbps about.google
+    google2.sgix.sg                           0.77 ms
+    103.16.102.64   AS15169  [SGIX]           新加坡   SGIX - Google LLC - 100Gbps about.google
+    google.sgix.sg                            2.45 ms
+    10.0.50.2       *                         RFC1918
+                                              0.31 ms
+3   172.253.77.227  AS15169  [GOOGLE]         新加坡    about.google
+                                              0.50 ms
+    103.16.102.64   AS15169  [SGIX]           新加坡   SGIX - Google LLC - 100Gbps about.google
+                                              1.60 ms / * ms
+4   209.85.248.209  AS15169  [GOOGLE]         新加坡    about.google
+                                              4.07 ms
+    192.178.109.177 AS15169                   美国    about.google
+                                              2.87 ms
+    192.178.109.208 AS15169                   美国    about.google
+                                              1.27 ms
+5   209.85.255.43   AS15169  [GOOGLE]         新加坡    about.google
+                                              3.53 ms
+    192.178.109.208 AS15169                   美国    about.google
+                                              1.18 ms
+    192.178.109.86  AS15169                   美国    about.google
+                                              1.08 ms
+6   142.251.230.135 AS15169  [GOOGLE]         新加坡    about.google
+                                              3.90 ms / * ms
+    66.249.95.248   AS15169                   新加坡    about.google
+                                              3.18 ms
+7   142.251.247.207 AS15169  [GOOGLE]         新加坡    about.google
+                                              1.19 ms
+    142.251.247.197 AS15169  [GOOGLE]         新加坡    about.google
+                                              1.42 ms
+    142.251.247.209 AS15169  [GOOGLE]         新加坡    about.google
+                                              3.00 ms
+8   209.85.250.189  AS15169  [GOOGLE]         新加坡    about.google
+                                              * ms / 2.18 ms / * ms
+9   *
+10  *
+11  *
+12  *
+13  *
+14  *
+15  *
+16  *
+17  64.233.170.103  AS15169                   新加坡    about.google
+    sg-in-f103.1e100.net                      * ms / 1.22 ms / 0.97 ms
+
+```
+
+## IPv4 UDP Trace
+
+```bash
+nexttrace --udp --port 53 8.8.8.8
+```
+**Test: singapore-server udp traffic to google dns**
+```text
+NextTrace v1.3.0 2024-04-18T06:38:21Z 2cb13be
+[NextTrace API] preferred API IP - 104.21.40.176 - 167.47ms - Misaka.HKG
+2024/05/08 16:28:04 dial: websocket: bad handshake
+IP Geo Data Provider: LeoMoeAPI
+traceroute to 8.8.8.8, 30 hops max, 52 bytes packets
+1   103.164.54.11   ASAPI Server Error                  网络故障
+3.24 ms / 0.68 ms / * ms
+2   10.0.50.2       *                         RFC1918
+1.29 ms
+103.16.102.188  AS15169  [SGIX]           新加坡   SGIX - Google LLC - 100Gbps about.google
+google2.sgix.sg                           6.41 ms / 20.23 ms
+3   103.16.102.64   AS15169  [SGIX]           新加坡   SGIX - Google LLC - 100Gbps about.google
+google.sgix.sg                            4.82 ms / 4.54 ms
+103.16.102.188  AS15169  [SGIX]           新加坡   SGIX - Google LLC - 100Gbps about.google
+1.36 ms
+4   216.239.41.111  AS15169  [GOOGLE]         美国    about.google
+2.84 ms / * ms / * ms
+5   72.14.232.107   AS15169                   新加坡    about.google
+15.19 ms / * ms / * ms
+```
+
+
+
+
+## Website Trace
+
+```bash
+nexttrace https://www.google.com
+```
+
+**Trace traffic from localhost(singapore) to google search website**
+```text
+NextTrace v1.3.0 2024-04-18T06:38:21Z 2cb13be
+[NextTrace API] preferred API IP - 104.21.40.176 - 71.74ms - Misaka.HKG
+Please Choose the IP You Want To TraceRoute
+0. 142.250.66.68
+1. 2404:6800:4005:81b::2004
+Your Option:
+IP Geo Data Provider: LeoMoeAPI
+traceroute to 142.250.66.68 (www.google.com), 30 hops max, 52 bytes packets
+1   *
+2   192.168.168.5   *                         RFC1918
+                                              3.33 ms / 3.01 ms / 3.29 ms
+3   10.13.8.6       *                         RFC1918
+                                              1.94 ms / 2.21 ms / 1.80 ms
+4   10.13.8.30      *                         RFC1918
+                                              10.12 ms / 1.06 ms / 1.81 ms
+5   10.13.8.1       *                         RFC1918
+                                              1.76 ms / 2.11 ms / 2.19 ms
+6   10.13.5.1       *                         RFC1918
+                                              14.73 ms / 2.29 ms / 1.96 ms
+7   63.216.84.237   AS3491                    中国 香港   pccwglobal.com
+    63-216-84-237.static.pccwglobal.net       102.36 ms / 101.93 ms / * ms
+8   72.14.222.254   AS15169                   中国 香港   about.google
+                                              3.80 ms / 3.84 ms / 3.87 ms
+9   209.85.244.77   AS15169  [GOOGLE]         中国 香港   about.google
+                                              1.52 ms / 1.49 ms / 1.89 ms
+10  172.253.72.151  AS15169  [GOOGLE]         中国 香港   about.google
+                                              1.88 ms / 1.82 ms / 1.86 ms
+11  142.250.66.68   AS15169  [GOOGLE]         中国 香港   about.google
+    hkg12s27-in-f4.1e100.net                  4.72 ms / 1.83 ms / 1.70 ms
+```
+
+## Advanced Usage
+```
+# Form printing
+nexttrace --table 1.1.1.1
+
+# An Output Easy to Parse
+nexttrace --raw 1.1.1.1
+nexttrace --json 1.1.1.1
+
+# IPv4/IPv6 Resolve Only, and automatically select the first IP when there are multiple IPs
+nexttrace --ipv4 g.co
+nexttrace --ipv6 g.co
+
+# IPv6 ICMP Trace
+nexttrace 2606:4700:4700::1111
+
+# Disable Path Visualization With the -M parameter
+nexttrace koreacentral.blob.core.windows.net
+# MapTrace URL: https://api.nxtrace.org/tracemap/html/c14e439e-3250-5310-8965-42a1e3545266.html
+
+# Disable MPLS display using the --disable-mpls / -e parameter or the NEXTTRACE_DISABLEMPLS environment variable
+nexttrace --disable-mpls example.com
+export NEXTTRACE_DISABLEMPLS=1
+
+# IPv4 ICMP Fast Test (Beijing + Shanghai + Guangzhou + Hangzhou) in China Telecom / Unicom / Mobile / Education Network
+nexttrace --fast-trace
+
+# You can also use TCP SYN for testing
+nexttrace --fast-trace --tcp
+
+# You can also quickly test through a customized IP/DOMAIN list file
+nexttrace --file /path/to/your/iplist.txt
+# CUSTOMIZED IP DOMAIN LIST FILE FORMAT
+## One IP/DOMAIN per line + space + description information (optional)
+## forExample:
+## 106.37.67.1 BEIJING-TELECOM
+## 240e:928:101:31a::1 BEIJING-TELECOM
+## bj.10086.cn BEIJING-MOBILE
+## 2409:8080:0:1::1
+## 223.5.5.5
+
+# Use eth0 network interface
+nexttrace --dev eth0 2606:4700:4700::1111
+
+# Use eth0 network interface's IP
+# When using the network interface's IP for route tracing, note that the IP type to be traced should be the same as network interface's IP type (e.g. both IPv4)
+nexttrace --source 204.98.134.56 9.9.9.9
+```

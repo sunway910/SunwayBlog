@@ -15,11 +15,13 @@
   "Prometheus": 0,
   "Grafana": 0,
   "Vue": 0,
+  "React": 0,
   "General": 0,
   "Diary": 0,
   "ARAM": 0,
   "Troubleshooting": 0,
   "Year Summary": 0,
   "Weekly Report": 0,
-  "English": 0
+  "English": 0,
+  "Cloudflare": 0
 }

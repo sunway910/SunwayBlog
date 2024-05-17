@@ -1,10 +1,10 @@
 ---
 title: Kubernetes with Cloudflare
 date: '2024-05-16'
-tags: ['Tech']
+tags: ['Tech', 'Cloudflare', 'Kubernetes']
 draft: false
 summary: K8S with Cloudflare
-lastmod: '2024-05-16'
+lastmod: '2024-05-17'
 ---
 
 <TOCInline toc={props.toc} indentDepth={3} fromHeading={1} toHeading={6}/>
@@ -12,14 +12,15 @@ lastmod: '2024-05-16'
 ---
 
 <span style={{color: 'red'}}>This blog introduce 3 ways to use cloudflare with kubernetes</span>
-- Expose service with Cloudflared
-- Nginx whitelist with Cloudflare
+- Expose service with Cloudflared Tunnel
+- Nginx whitelist ip with Cloudflare
 - Kubernetes load balance with cloudflare
 
 
 ## 1 Expose service with Cloudflared
 
-My kubernetes cluster has 5 nodes and 1 master, I will expose services in 6 servers in this blog.
+My kubernetes cluster has 5 nodes and 1 master, I will show how to expose services in 6 servers with cloudflared tunnel in this section.
+
 ```
 NAME          STATUS   ROLES           AGE     VERSION   INTERNAL-IP     EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION      CONTAINER-RUNTIME
 k8s-master1   Ready    control-plane   7d      v1.30.0   10.0.0.1        <none>        Ubuntu 20.04.6 LTS   5.4.0-105-generic   containerd://1.6.31
@@ -151,7 +152,7 @@ Now, we’ll deploy cloudflared by applying its [manifest](https://github.com/cl
 
 - **6:** Modify `Secret Name` and `ConfigMap Name` as below
 
-- **7:** Only example for `master` and `node1`, you can add `node2, node3, node4, node5` yaml configuration as below
+- **7:** Only example yaml for `master.yaml` and `node1.yaml`, you can add `node2, node3, node4, node5` yaml configuration as below
 
 <span style={{color: 'red'}}>Cloudflared Deployment Yaml</span>
 
@@ -348,13 +349,14 @@ spec:
 After config your own configuration:
 
 ```bash
-kubectl apply -f master.yaml
-kubectl apply -f node1.yaml
-kubectl apply -f node2.yaml
-kubectl apply -f node3.yaml
-kubectl apply -f node4.yaml
-kubectl apply -f node5.yaml
-kubectl apply -f app.yaml
+alias kapply="kubectl apply -f"
+kapply master.yaml
+kapply node1.yaml
+kapply node2.yaml
+kapply node3.yaml
+kapply node4.yaml
+kapply node5.yaml
+kapply app.yaml
 ```
 
 
@@ -488,6 +490,9 @@ sudo ip6tables -A INPUT -p tcp --dport 443 -j DROP
 
 iptables -L INPUT --line-numbers
 ip6tables -L INPUT --line-numbers
+
+# iptables -D INPUT $line-numbers
+# ip6tables -D INPUT $line-numbers
 ```
 ---
 ### 2.4 Install nginx ingress
@@ -511,7 +516,7 @@ You can set a subdomain proxy by cloudflare and a subdomain do not proxy by clou
 <br></br><br></br>
 <span style={{color: 'blue'}}>For example, I have 4 k8s cluster in London, Singapore, HongKong and SiliconValley, I can set each cluster entrance in cloudflare load balance to make Global-LB.</span>
 
-The system architecture can be illustrate as below
+The system architecture can be illustrated as below
 
 ![CloudflareLBwithK8s](/static/images/CloudflareLBwithK8s.png)
 

@@ -1,0 +1,72 @@
+---
+title: Cloudflare Concurrent Connection Limit
+date: '2024-07-14'
+tags: ['Tech', 'Cloudflare']
+draft: false
+summary: Cloudflare Websocket Connection Limit
+---
+
+<TOCInline toc={props.toc} indentDepth={3} fromHeading={1} toHeading={6}/>
+
+---
+
+
+## 1 Background
+
+One day, I receive that some services is down, and some users also reports that they can not connect with our services
+
+This services cluster is load balance by `Cloudflare LoadBalancing`, and I set alert configuration in cloudflare, but I did not receive any alert from cloudflare, that so weird.
+
+so I use this command to do health check for our service:
+
+```bash
+docker run --rm -it ghcr.io/vi/websocat wss://testnet-rpc.cess.cloud/ws/
+```
+
+and it just returns a message: <span style={{color: 'red'}}>502 bad gateway</span>
+
+
+## 2 Reason
+
+So I just `ssh` to the real host and check the chain service log, and I found all backend services is work fine.
+
+
+**Service log as below:**
+![RpcNodeLog](/static/images/RpcNodeLog.png)
+
+The container log seems that this service works fine, and then, I check the others services, and it also works fine.
+
+I search the `cloudflare community` for help and finally got it. The reason why the backend services has no problem but still `returns 502` is because of the [Cloudflare Concurrent Connection Limit](https://community.cloudflare.com/t/cloudflare-websocket-limits/57455/4)
+
+but it still got a little difference, I got `502 err code` and the others guys got `503 err code`, maybe cloudflare has updated `the err code return` after 2019.
+
+When I calculated all my services concurrent connection and found that: <span style={{color: 'red'}}>cloudflare support almost 40000+ concurrent websocket connections for my services for free</span>, that is amazing.
+
+
+
+
+---
+## 3 Solution
+
+- Solution1: Restart all backend services and disrupt all connections, make the concurrent websocket connections number re-calculate from zero
+
+- Solution2: Upgrade domain to Pro edition, according to the community, Pro edition can give roughly a 5x increase over Free edition, and business a similar increase.
+
+Finally, I spend 240$ to upgrade domain to pro edition, and the services restore after 10 min.(maybe we should upgrade to business to get more services)
+
+
+
+## 4 Summary
+
+In the chain mainland, we call `Cloudflare` as `赛博佛祖` or `赛博义父` because its free services like `warp`, `pages`,`workers`...
+
+I believe most developers behind the great fire wall hope that Cloudflare will get better and better.
+
+---
+
+Currently, we spend about $1,000 on Cloudflare every year, and it will increase in the future. We are willing to pay for quality services, not just to be a freeloader.
+
+The last earning report caused cloudflare stock price `#net` to fall a lot ,and I hope this upcoming earnings report will bring good news
+
+
+

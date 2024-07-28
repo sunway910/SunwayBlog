@@ -99,7 +99,7 @@ xxxxxxxx-544b-4955-b041-xxxxxxxxxxxx k8stunnel-node5 2024-05-09T09:58:34Z 1xfra0
 <span style={{color: 'blue'}}>Next, you will upload the generated Tunnel credential file as a secret to your Kubernetes cluster. You will also need to provide the filepath that the Tunnel credentials file was created under. You can find that path in the output of `[ cloudflared tunnel create k8stunnel-node1 ]` above.</span>
 
 ```bash
-kubectl create secret generic tunnel-credentials-node1 --from-file=credentials.json=/Users/cf000197/.cloudflared/ef824aef-7557-4b41-a398-4684585177ad.json  #(exec in node1)
+kubectl create -n cloudflare secret generic tunnel-credentials-node1 --from-file=credentials.json=/Users/cf000197/.cloudflared/ef824aef-7557-4b41-a398-4684585177ad.json  #(exec in node1)
 # kubectl create secret generic tunnel-credentials --from-file=credentials.json=/Users/cf000197/.cloudflared/master.json       (exec in master)
 # kubectl create secret generic tunnel-credentials-node2 --from-file=credentials.json=/Users/cf000197/.cloudflared/node2.json  (exec in node2)
 # kubectl create secret generic tunnel-credentials-node3 --from-file=credentials.json=/Users/cf000197/.cloudflared/node3.json  (exec in node3)

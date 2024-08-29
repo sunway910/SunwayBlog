@@ -1,0 +1,49 @@
+---
+title: Recent Insights About Golang
+date: '2024-08-29'
+tags: ['Weekly Report']
+draft: false
+images: []
+summary: 最近关于写 golang 的一些感悟
+---
+
+<TOCInline toc={props.toc}/>
+
+## EN
+
+In college and my first job, my main languages were `Java/Python`, and my backend learning was mainly focused on `Java`.
+I still remember that I memorized a lot of `eight-legged essay` for interviews, but now I can't remember much.
+Recently, this job has completely switched to `Golang` and there are some of my recent insights
+
+- **1** The key of `json unmarshal` in Golang standard library is case-insensitive. I have fallen into the trap of Java Fastjson many times.
+- **2** In Golang, variables with capitalized first letters can be used as `public variables`, which is similar to the role of the `public` modifier in `Java`. For me, it feels strange to use.
+- **3** Re-experiencing `pointer programming` reminded me of the feeling of writing a big assignment in `C language` when I was a freshman.
+- **4** `Goroutine` is indeed very easy to use. Having previously worked with Python's `Asyncio` and Java's `ThreadPoolExecutor`, I quickly adapted to it. However, it's important not to use goroutines simply for the sake of using them. Recently, a miner monitoring program excessively utilized goroutines to make over 400 concurrent requests to a backend service, causing a crash in the backend database connection pool. The service only resumed normal operation after being restarted and subsequent requests were directed to Redis. In reality, this particular business scenario did not necessitate concurrent requests at all.
+
+
+## CN
+
+在大学和第一份工作中，我的主要语言是 `Java/Python`，后端方面的学习主要专注在 Java 上面，还记得之前为了面试背了非常多的八股文，现在能记得已经不多了。最近这份工作才将后端语言全面转向 `Golang`，以下是我最近的一些感悟
+
+- **1** Golang standard library 的 `json unmarshal` 的 key 是大小写不敏感的，以前在 Java Fastjson 中采的坑又重新踩了很多遍
+- **2** Golang 中的变量首字母大写可作为公共变量，和 `Java` 中的 `public` 修饰符的作用类似，这让习惯了首字母小写然后用驼峰命名的我来说用起来很奇怪。
+- **3** 重新接触指针编程，让我回想起了大一时用 C 语言写大作业的感觉，写了上千行的屎山（指针乱飞）来实现一个图书管理系统
+- **4** `Goroutine` 真的好用。由于用过 Python 的 `Asyncio` 和 Java 的 `ThreadPoolExecutor`，所有接触起来很快。但我想说的时，不要为了用 `goroutine` 而用 `goroutine`。（最近在一个矿工监控程序中乱用 goroutine 用 400+ 并发去请求一个中心化的后端服务时直接把后端的DB连接池给打崩了，只能重启服务后再去请求 redis 时才正常，而实际上这个业务场景根本不需要并发请求. ）
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,466 @@
+---
+title: Deploy Prometheus Monitoring Service
+date: '2024-08-15'
+tags: ['Tech', 'Prometheus', 'Grafana', 'Linux']
+draft: false
+summary: prometheus 监控服务部署
+---
+
+<TOCInline toc={props.toc} indentDepth={3} fromHeading={1} toHeading={6}/>
+
+## 1 Node Exporter
+
+### 1.1 Install Node Exporter
+```bash
+mkdir -p /app/monitor
+cd /app/monitor
+wget https://github.com/prometheus/node_exporter/releases/download/v1.7.0/node_exporter-1.7.0.linux-amd64.tar.gz
+wget https://github.com/prometheus/blackbox_exporter/releases/download/v0.25.0/blackbox_exporter-0.25.0.linux-amd64.tar.gz
+
+
+tar -xvf node_exporter-1.7.0.linux-amd64.tar.gz
+tar -xvf blackbox_exporter-0.25.0.linux-amd64.tar.gz
+
+mv blackbox_exporter-0.25.0.linux-amd64 blackbox_exporter
+mv node_exporter-1.7.0.linux-amd64 node_exporter
+
+rm -f *.tar.gz
+```
+
+### 1.2 Config Systemd Service
+```bash
+# groupadd prometheus
+# useradd -g prometheus -m -d /var/lib/prometheus -s /sbin/nologin prometheus
+# please use a user instead of root in production env
+
+cat > /lib/systemd/system/node_exporter.service << EOF
+[Unit]
+Description=node_export
+Documentation=https://github.com/prometheus/node_exporter
+After=network.target
+[Service]
+Type=simple
+User=root
+ExecStart=/app/monitor/node_exporter/node_exporter
+Restart=on-failure
+[Install]
+WantedBy=multi-user.target
+EOF
+
+
+cat > /lib/systemd/system/blackbox_exporter.service << EOF
+[Unit]
+Description=blackbox_exporter
+After=network.target
+[Service]
+User=root
+Type=simple
+ExecStart=/app/monitor/blackbox_exporter/blackbox_exporter --config.file=/app/monitor/blackbox_exporter/blackbox.yml
+Restart=on-failure
+[Install]
+WantedBy=multi-user.target
+EOF
+
+ln -s /app/monitor/blackbox_exporter/blackbox_exporter /usr/bin/blackbox_exporter
+ln -s /app/monitor/node_exporter/node_exporter /usr/bin/node_exporter
+```
+
+### 1.3 Config Blackbox Exporter
+```bash
+cat > /app/monitor/blackbox_exporter/blackbox.yml << EOF
+modules:
+  http_2xx:
+    prober: http
+    timeout: 10s
+    http:
+      method: GET
+      valid_http_versions: [HTTP/1.1, HTTP/2]
+      valid_status_codes: [] #if null, default: 2xx
+      fail_if_ssl: false
+      fail_if_not_ssl: false
+      tls_config:
+        insecure_skip_verify: false
+  http_post_2xx:
+    prober: http
+    http:
+      method: POST
+  tcp_connect:
+    prober: tcp
+    timeout: 10s
+    tcp:
+      preferred_ip_protocol: ip4
+  pop3s_banner:
+    prober: tcp
+    tcp:
+      query_response:
+      - expect: "^+OK"
+      tls: true
+      tls_config:
+        insecure_skip_verify: false
+  grpc:
+    prober: grpc
+    grpc:
+      tls: true
+      preferred_ip_protocol: "ip4"
+  grpc_plain:
+    prober: grpc
+    grpc:
+      tls: false
+      service: "service1"
+  ssh_banner:
+    prober: tcp
+    tcp:
+      query_response:
+      - expect: "^SSH-2.0-"
+      - send: "SSH-2.0-blackbox-ssh-check"
+  irc_banner:
+    prober: tcp
+    tcp:
+      query_response:
+      - send: "NICK prober"
+      - send: "USER prober prober prober :prober"
+      - expect: "PING :([^ ]+)"
+        send: "PONG "
+      - expect: "^:[^ ]+ 001"
+  icmp:
+    prober: icmp
+  icmp_ttl5:
+    prober: icmp
+    timeout: 5s
+    icmp:
+      ttl: 5
+EOF
+```
+
+### 1.4 Start Service
+```bash
+systemctl enable blackbox_exporter node_exporter
+systemctl restart blackbox_exporter node_exporter
+systemctl status blackbox_exporter node_exporter
+```
+
+
+
+## 2 Install Prometheus Server
+
+### 2.1 Install Monitoring Tools
+```bash
+mkdir -p /app/monitor
+cd /app/monitor
+
+wget https://github.com/prometheus/prometheus/releases/download/v2.51.1/prometheus-2.51.1.linux-amd64.tar.gz
+wget https://github.com/prometheus/alertmanager/releases/download/v0.27.0/alertmanager-0.27.0.linux-amd64.tar.gz
+wget https://github.com/prometheus/node_exporter/releases/download/v1.7.0/node_exporter-1.7.0.linux-amd64.tar.gz
+wget https://github.com/prometheus/blackbox_exporter/releases/download/v0.25.0/blackbox_exporter-0.25.0.linux-amd64.tar.gz
+
+tar -xvf prometheus-2.51.1.linux-amd64.tar.gz
+tar -xvf alertmanager-0.27.0.linux-amd64.tar.gz
+tar -xvf node_exporter-1.7.0.linux-amd64.tar.gz
+tar -xvf blackbox_exporter-0.25.0.linux-amd64.tar.gz
+
+mv alertmanager-0.27.0.linux-amd64 alertmanager
+mv blackbox_exporter-0.25.0.linux-amd64 blackbox_exporter
+mv node_exporter-1.7.0.linux-amd64 node_exporter
+mv prometheus-2.51.1.linux-amd64 prometheus
+
+cd prometheus && wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.101.0/victoria-metrics-linux-amd64-v1.101.0.tar.gz && tar -xvf victoria-metrics-linux-amd64-v1.101.0.tar.gz && rm -f *.tar.gz && cd /app/monitor
+
+#https://grafana.com/grafana/download
+# ubuntu
+sudo apt-get install -y adduser libfontconfig1 musl
+wget https://dl.grafana.com/enterprise/release/grafana-enterprise_11.0.0_amd64.deb
+sudo dpkg -i grafana-enterprise_11.0.0_amd64.deb
+
+# centos
+sudo yum install -y https://dl.grafana.com/enterprise/release/grafana-enterprise-10.4.2-1.x86_64.rpm
+
+mkdir alertmanager/logs
+mkdir prometheus/rules
+
+rm -f *.tar.gz
+```
+
+### 2.2 Config Systemd Service
+```bash
+# groupadd prometheus
+# useradd -g prometheus -m -d /var/lib/prometheus -s /sbin/nologin prometheus
+# please use a user instead of root in production env
+
+cat > /lib/systemd/system/prometheus.service << EOF
+[Unit]
+Description=prometheus
+After=network.target
+[Service]
+Type=simple
+User=root
+ExecStart=/app/monitor/prometheus/prometheus --config.file=/app/monitor/prometheus/prometheus.yml --storage.tsdb.path=/var/lib/prometheus --storage.tsdb.retention=15d --log.level=info
+Restart=on-failure
+[Install]
+WantedBy=multi-user.target
+EOF
+
+cat > /lib/systemd/system/alertmanager.service << EOF
+[Unit]
+Description=alertmanager
+Documentation=https://github.com/prometheus/alertmanager
+After=network.target
+[Service]
+Type=simple
+User=root
+ExecStart=/app/monitor/alertmanager/alertmanager --config.file=/app/monitor/alertmanager/alertmanager.yml --log.level=info --log.format=json
+StandardOutput=append:/app/monitor/alertmanager/logs/alertmanager.log
+StandardError=append:/app/monitor/alertmanager/logs/alertmanager.log
+Restart=on-failure
+[Install]
+WantedBy=multi-user.target
+EOF
+
+cat > /lib/systemd/system/node_exporter.service << EOF
+[Unit]
+Description=node_export
+Documentation=https://github.com/prometheus/node_exporter
+After=network.target
+[Service]
+Type=simple
+User=root
+ExecStart=/app/monitor/node_exporter/node_exporter
+Restart=on-failure
+[Install]
+WantedBy=multi-user.target
+EOF
+
+cat > /lib/systemd/system/blackbox_exporter.service << EOF
+[Unit]
+Description=blackbox_exporter
+After=network.target
+[Service]
+User=root
+Type=simple
+ExecStart=/app/monitor/blackbox_exporter/blackbox_exporter --config.file=/app/monitor/blackbox_exporter/blackbox.yml
+Restart=on-failure
+[Install]
+WantedBy=multi-user.target
+EOF
+
+cat > /lib/systemd/system/victoriametrics.service << EOF
+[Unit]
+After=network.target
+[Service]
+Type=simple
+User=root
+ExecStart=/app/monitor/prometheus/victoria-metrics-prod
+WorkingDirectory=/app/monitor/prometheus
+Restart=on-failure
+[Install]
+WantedBy=multi-user.target
+EOF
+
+ln -s /app/monitor/blackbox_exporter/blackbox_exporter /usr/bin/blackbox_exporter
+ln -s /app/monitor/node_exporter/node_exporter /usr/bin/node_exporter
+ln -s /app/monitor/alertmanager/alertmanager /usr/bin/alertmanager
+ln -s /app/monitor/prometheus/prometheus /usr/bin/prometheus
+ln -s /app/monitor/prometheus/victoriametrics /usr/bin/victoriametrics
+# can backup data with vmbackup-prod to s3
+ln -s /app/monitor/prometheus/victoriametricsUtils/vmbackup-prod /usr/bin/vmbackup
+ln -s /usr/share/grafana/bin/grafana /usr/bin/grafana-server
+```
+
+### 2.3 Config Tools Configuration
+```bash
+cat >/app/monitor/blackbox_exporter/blackbox.yml <<EOF
+modules:
+  http_2xx:
+    prober: http
+    timeout: 10s
+    http:
+      method: GET
+      valid_http_versions: [HTTP/1.1, HTTP/2]
+      valid_status_codes: [] #if null, default: 2xx
+      fail_if_ssl: false
+      fail_if_not_ssl: false
+      tls_config:
+        insecure_skip_verify: false
+  http_post_2xx:
+    prober: http
+    http:
+      method: POST
+  tcp_connect:
+    prober: tcp
+    timeout: 10s
+    tcp:
+      preferred_ip_protocol: ip4
+  pop3s_banner:
+    prober: tcp
+    tcp:
+      query_response:
+      - expect: "^+OK"
+      tls: true
+      tls_config:
+        insecure_skip_verify: false
+  grpc:
+    prober: grpc
+    grpc:
+      tls: true
+      preferred_ip_protocol: "ip4"
+  grpc_plain:
+    prober: grpc
+    grpc:
+      tls: false
+      service: "service1"
+  ssh_banner:
+    prober: tcp
+    tcp:
+      query_response:
+      - expect: "^SSH-2.0-"
+      - send: "SSH-2.0-blackbox-ssh-check"
+  irc_banner:
+    prober: tcp
+    tcp:
+      query_response:
+      - send: "NICK prober"
+      - send: "USER prober prober prober :prober"
+      - expect: "PING :([^ ]+)"
+        send: "PONG "
+      - expect: "^:[^ ]+ 001"
+  icmp:
+    prober: icmp
+  icmp_ttl5:
+    prober: icmp
+    timeout: 5s
+    icmp:
+      ttl: 5
+EOF
+
+cat >/app/monitor/prometheus/rules/rules-node.yml <<EOF
+groups:
+- name: alert-rules.yml
+  rules:
+  - alert: InstanceStatus
+    expr: up{job="node"} == 0
+    for: 60s
+    labels:
+      severity: "critical"
+    annotations:
+      region: HongKong-IDC
+      description: Server has been down for more than 60 seconds
+EOF
+
+tee ~ /app/monitor/prometheus/rules/rules-blackbox-exporter.yml <<"EOF"
+groups:
+- name: blackbox
+  rules:
+
+  # Blackbox probe failed
+  - alert: BlackboxProbeFailed
+    expr: probe_success == 0
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: Blackbox probe failed (instance {{ $labels.instance }})
+      description: "Probe failed\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}\n  Once per minute, 5 consecutive failures\n"
+
+  # Blackbox slow probe
+  - alert: BlackboxSlowProbe
+    expr: avg_over_time(probe_duration_seconds[1m]) > 10
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: Blackbox slow probe (instance {{ $labels.instance }})
+      description: "Blackbox probe took more than 10s to complete\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}\n Once per minute, 5 consecutive failures\n"
+
+  # Blackbox probe HTTP failure
+  - alert: BlackboxProbeHttpFailure
+    expr: probe_http_status_code <= 199 OR probe_http_status_code >= 400
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: Blackbox probe HTTP failure (instance {{ $labels.instance }})
+      description: "HTTP status code is not 200-399\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+  # Blackbox probe slow HTTP
+  - alert: BlackboxProbeSlowHttp
+    expr: avg_over_time(probe_http_duration_seconds[1m]) > 10
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: Blackbox probe slow HTTP (instance {{ $labels.instance }})
+      description: "HTTP request took more than 10s\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+  # Blackbox probe slow ping
+  - alert: BlackboxProbeSlowPing
+    expr: avg_over_time(probe_icmp_duration_seconds[1m]) > 10
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: Blackbox probe slow ping (instance {{ $labels.instance }})
+      description: "Blackbox ping took more than 10s\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+EOF
+
+cat >/app/monitor/alertmanager/alertmanager.yml <<EOF
+global:
+  smtp_smarthost: 'xxxx'
+  smtp_from: 'xxxxxx'
+  smtp_auth_username: 'xxxx'
+  smtp_auth_password: '123546'
+  smtp_require_tls: false
+templates:
+  - '/alertmanager/template/*.tmpl'
+route:
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 10m
+  receiver: default-receiver
+receivers:
+- name: 'default-receiver'
+  email_configs:
+  - to: 'xxxx@xxx.com'
+    html: ''
+    headers: { Subject: "[WARN] email test" }
+- name: 'webhook'
+    webhook_configs:
+      - url: 'http://localhost:9093xxxxxxx'
+        send_resolved: true
+EOF
+
+cat >/app/monitor/prometheus/prometheus.yml <<EOF
+global:
+  scrape_interval: 60s # Set the scrape interval to every 15 seconds. Default is every 1 minute.
+  evaluation_interval: 60s # Evaluate rules every 15 seconds. The default is every 1 minute.
+  external_labels:
+    datacenter: HongKong-IDC
+
+# save ts_data to victoria_metrics
+remote_write:
+  - url: http://localhost:8428/api/v1/write
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - localhost:9093
+
+rule_files:
+  - "/app/prometheus/rules/rule*.yml"
+
+scrape_configs:
+  - job_name: "prometheus"
+    static_configs:
+      - targets: [ 'localhost:9090' ]
+  - job_name: "HongKong-IDC"
+    static_configs:
+      - targets: [ "10.0.0.1:9100" ]
+EOF
+```
+
+### 2.4 Start Monitoring Services
+```bash
+systemctl enable blackbox_exporter node_exporter prometheus grafana-server alertmanager victoriametrics
+systemctl restart blackbox_exporter node_exporter prometheus grafana-server alertmanager victoriametrics
+systemctl status blackbox_exporter node_exporter prometheus grafana-server alertmanager victoriametrics
+```

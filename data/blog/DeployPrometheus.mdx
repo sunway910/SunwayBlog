@@ -6,7 +6,7 @@ draft: false
 summary: prometheus 监控服务部署
 ---
 
-<TOCInline toc={props.toc} indentDepth={3} fromHeading={1} toHeading={6}/>
+<TOCInline toc={props.toc} indentDepth={4} fromHeading={1} toHeading={6}/>
 
 ## 1 Node Exporter
 
@@ -464,3 +464,129 @@ systemctl enable blackbox_exporter node_exporter prometheus grafana-server alert
 systemctl restart blackbox_exporter node_exporter prometheus grafana-server alertmanager victoriametrics
 systemctl status blackbox_exporter node_exporter prometheus grafana-server alertmanager victoriametrics
 ```
+
+## 3 Grafana Configuration
+
+User can edit their own configuration file `/etc/grafana/grafana.ini` and then restart grafana by `systemctl restart grafana-server`.
+
+### 3.1 Paths Section
+
+This section allows you to define paths for logging, data storage, and plugins.
+
+```
+data = "/var/lib/grafana"
+logs = "/var/log/grafana"
+plugins = "/var/lib/grafana/plugins"
+```
+
+### 3.2 Server Section
+
+Configures the HTTP server.
+
+```
+http_port = 3000
+domain = "localhost"
+root_url = "%(protocol)s://%(domain)s:%(http_port)s/"
+```
+
+### 3.3 Database Section
+
+Specifies the database settings (Grafana supports SQLite, MySQL, and PostgreSQL).
+
+```
+type = "sqlite3"
+host = "127.0.0.1:3306"
+name = "grafana"
+user = "root"
+password = "secret"
+```
+### 3.4 Security Section
+
+Manages security settings such as login settings and secret keys.
+
+```
+admin_user = "admin"
+admin_password = "admin"
+secret_key = "xxxxxxxxxxxxxxxxx"
+```
+
+### 3.5 Authentication Section
+
+Configures authentication methods like OAuth, Basic Auth, LDAP, etc.
+
+```
+disable_login_form = false
+oauth_auto_login = true
+```
+
+### 3.6 Logging Section
+
+Controls the logging level and format.
+
+```
+mode = "console"
+level = "info"
+```
+
+### 3.7 Email Section
+
+Used for configuring email settings for alerts.
+
+```
+enabled = true
+host = "smtp.example.com:587"
+user = "user@example.com"
+password = "password"
+```
+
+### 3.8 Alerting Section
+
+Configures the alerting feature in Grafana.
+
+```
+enabled = true
+execute_alerts = true
+```
+
+These settings can be adjusted to meet the specific needs of your Grafana installation, whether it's changing the database backend, adjusting the HTTP server settings, or configuring security and authentication mechanisms.
+
+Remember that any changes to the `grafana.ini` file require a restart of the Grafana server to take effect.
+
+
+## 4 Grafana Dashboard
+
+Try to log in `localhost:3000` with default user `admin` and password `admin` if you do not change the configuration in `# 3.4` and then reset the password.
+
+### 4.1 Import Datasource
+
+Import the datasource as below, select the `victoriametrics` as the datasource as default and save it if you set `remote_write` in `prometheus.yml`, otherwise, you can use the default prometheus as the datasource.
+
+![PrometheusDataSource](/static/images/PrometheusDataSource.png)
+
+### 4.2 Import Dashboard
+
+Import the [node exporter full dashboard](https://grafana.com/grafana/dashboards/1860-node-exporter-full/) as below.
+
+![GrafanaNewDashboard1](/static/images/GrafanaNewDashboard1.png)
+![GrafanaNewDashboard2](/static/images/GrafanaNewDashboard2.png)
+![GrafanaNewDashboard3](/static/images/GrafanaNewDashboard3.png)
+
+### 4.3 Import Alert Rules
+
+#### 4.3.1 Cpu Demo Rule
+```
+100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+```
+![GrafanaCPURules](/static/images/GrafanaCPURules.png)
+#### 4.3.2 Disk Demo Rule
+```
+100 - ((node_filesystem_avail_bytes{mountpoint=~"^/$|^/mnt/.*"} / node_filesystem_size_bytes{mountpoint=~"^/$|^/mnt/.*"}) * 100)
+```
+![GrafanaDiskRules](/static/images/GrafanaDiskRules.png)
+#### 4.3.3 RAM Demo Rule
+```
+100 - ((node_memory_MemAvailable_bytes * 100) / node_memory_MemTotal_bytes)
+```
+![GrafanaRAMRules](/static/images/GrafanaRAMRules.png)
+
+

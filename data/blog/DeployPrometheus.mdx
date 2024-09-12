@@ -580,6 +580,7 @@ Import the [node exporter full dashboard](https://grafana.com/grafana/dashboards
 ![GrafanaCPURules](/static/images/GrafanaCPURules.png)
 #### 4.3.2 Disk Demo Rule
 ```
+# check root path: / and mount path: /mnt/*
 100 - ((node_filesystem_avail_bytes{mountpoint=~"^/$|^/mnt/.*"} / node_filesystem_size_bytes{mountpoint=~"^/$|^/mnt/.*"}) * 100)
 ```
 ![GrafanaDiskRules](/static/images/GrafanaDiskRules.png)

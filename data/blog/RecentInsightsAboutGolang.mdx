@@ -28,7 +28,7 @@ Recently, this job has completely switched to `Golang` and there are some of my 
 - **1** Golang standard library 的 `json unmarshal` 的 key 是大小写不敏感的，以前在 Java Fastjson 中采的坑又重新踩了很多遍
 - **2** Golang 中的变量首字母大写可作为公共变量，和 `Java` 中的 `public` 修饰符的作用类似，这让习惯了首字母小写然后用驼峰命名的我来说用起来很奇怪。
 - **3** 重新接触指针编程，让我回想起了大一时用 C 语言写大作业的感觉，写了上千行的屎山（指针乱飞）来实现一个图书管理系统
-- **4** `Goroutine` 真的好用。由于用过 Python 的 `Asyncio` 和 Java 的 `ThreadPoolExecutor`，所有接触起来很快。但我想说的时，不要为了用 `goroutine` 而用 `goroutine`。（最近在一个矿工监控程序中乱用 goroutine 用 400+ 并发去请求一个中心化的后端服务时直接把后端的DB连接池给打崩了，只能重启服务后再去请求 redis 时才正常，而实际上这个业务场景根本不需要并发请求. ）
+- **4** `Goroutine` 真的好用。由于用过 Python 的 `Asyncio` 和 Java 的 `ThreadPoolExecutor`，所有接触起来很快。但最近也出了一些岔子。（最近在一个矿工监控程序中乱用 goroutine 用 400+ 并发去请求一个中心化的后端服务时直接把后端的DB连接池给打崩了，导致了短暂的5xx异常，而实际上这个业务场景根本不需要用并发去请求. ）
 
 
 

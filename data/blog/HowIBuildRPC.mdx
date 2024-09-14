@@ -2,37 +2,41 @@
 title: How I Build RPC Service For Web3 Project
 date: '2024-09-12'
 tags: ['Tech']
-draft: true
+draft: false
 images: []
 summary: 我是怎么为 Web3 项目构建 RPC 服务的
 ---
 
-<TOCInline toc={props.toc} indentDepth={4} fromHeading={1} toHeading={6}/>
+<TOCInline toc={props.toc} indentDepth={3} fromHeading={2} toHeading={6}/>
 
 ## Background
 
-在我刚加入目前直接公司时，我们项目的RPC服务是以单节点+不同域名的方式部署的，后来随着项目的发展，我们决定将 RPC 服务变更到多节点模式并提供统一的服务入口，以提高服务的可用性。
+项目早期的RPC服务是以单节点+不同域名的方式部署的，用户需要在配置文件中配置多个 rpc 节点，以保证服务的可用性。
+
+随着项目的发展，我决定为官方的 RPC 服务提供一个统一的访问入口，来提升服务的访问速度、稳定性以及可用性，同时降低用户配置的复杂度。
 
 
 ## Architecture
 
-这是现在的架构模式
-
 ![RpcArchitecture](/static/images/rpcArch.png)
 
-```nginx
-    upstream nginx_ingress_http {
-      server 10.0.12.1:30080;
-      server 10.0.12.2:30080;
-    }
-    server {
-         listen 443 ssl;
-         server_name rpc.example.com;
-         ssl_certificate /etc/nginx/ssl/example.pem;
-         ssl_certificate_key /etc/nginx/ssl/example.key;
-         ssl_protocols TLSv1.2 TLSv1.3;
-         ssl_ciphers HIGH:!aNULL:!MD5;
-         location / {
+
+<details>
+    <summary>nginx.conf</summary>
+        ```nginx
+        upstream nginx_ingress_http {
+            # nginx ingress svc type: NodePort
+            server 10.0.12.1:30080;
+            server 10.0.12.2:30080;
+        }
+        server {
+            listen 443 ssl;
+            server_name rpc.example.com;
+            ssl_certificate /etc/nginx/ssl/example.pem;
+            ssl_certificate_key /etc/nginx/ssl/example.key;
+            ssl_protocols TLSv1.2 TLSv1.3;
+            ssl_ciphers HIGH:!aNULL:!MD5;
+            location / {
             proxy_pass http://nginx_ingress_http;
             proxy_http_version 1.1;
             proxy_set_header Upgrade $http_upgrade;
@@ -40,32 +44,40 @@ summary: 我是怎么为 Web3 项目构建 RPC 服务的
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-         }
-    }
-```
+            }
+        }
+        ```
+</details>
 
+<details>
+    <summary>ingress.yaml</summary>
+    ```yaml
+    apiVersion: networking.k8s.io/v1
+    kind: Ingress
+    metadata:
+      name: rpc-ingress
+      namespace: deapp
+      annotations:
+        nginx.org/websocket-services: rpc-svc
+    spec:
+      ingressClassName: nginx
+      rules:
+        - host: rpc.example.com
+          http:
+            paths:
+              - path: /
+                pathType: Prefix
+                backend:
+                service:
+                  name: rpc-svc
+                  port:
+                    number: 9944
+    ```
+</details>
+
+<details>
+<summary>service.yaml</summary>
 ```yaml
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: rpc-ingress
-  namespace: deapp
-  annotations:
-    nginx.org/websocket-services: rpc-svc
-spec:
-  ingressClassName: nginx
-  rules:
-    - host: rpc.example.com
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: rpc-svc
-                port:
-                  number: 9944
----
 apiVersion: v1
 kind: Service
 metadata:
@@ -87,51 +99,137 @@ spec:
       name: metric
       port: 9615
       targetPort: 9615
+    - protocol: TCP
+      name: sync
+      port: 30336
+      targetPort: 30336
 ```
+</details>
 
-### Inbound: Cloudflare Load Balancing
+<details>
+<summary>deployment.yaml</summary>
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rpc-deployment
+  namespace: deapp
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: rpc
+      app.kubernetes.io/component: rpc
+  template:
+    metadata:
+      labels:
+        app: rpc
+        app.kubernetes.io/component: rpc
+    spec:
+      containers:
+        - name: rpc-seattle
+          image: "cesslab/cess-chain:testnet"
+          imagePullPolicy: Always
+          command:
+            - "./cess-node"
+            - "--base-path"
+            - "/opt/cess/data"
+            - "--chain"
+            - "cess-testnet"
+            - "--port"
+            - "30336"
+            - "--name"
+            - "cess"
+            - "--rpc-port"
+            - "9944"
+            - "--execution"
+            - "WASM"
+            - "--wasm-execution"
+            - "compiled"
+            - "--in-peers"
+            - "75"
+            - "--out-peers"
+            - "75"
+            - "--state-pruning"
+            - "archive"
+            - "--rpc-max-connections"
+            - "65535"
+            - "--prometheus-external"
+            - "--rpc-external"
+            - "--rpc-cors"
+            - "all"
+          volumeMounts:
+            - name: rpc-storage
+              mountPath: /opt/cess/data
+          ports:
+            - containerPort: 9944
+              name: websocket
+            - containerPort: 9615
+              name: metric
+            - containerPort: 30336
+              name: svc
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: 9615
+            failureThreshold: 3
+            initialDelaySeconds: 60
+            periodSeconds: 300
+      volumes:
+        - name: rpc-storage
+          hostPath:
+            path: /app/data/rpc
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - rpc
+              topologyKey: "kubernetes.io/hostname"
+```
+</details>
 
-因为 `CF Load Balancing` 默认是被 `Cloudflare` 代理保护的，所以用户的流量首先会访问 `Cloudflare`, 在经过 `Cloudflare` 的 `AntiDdos/Rules/WAF/LoadBalancing..` 链路后，才会被转发到后端的服务器上。
 
-选择 `Cloudflare Load Balancing` 的原因：
+## Problems
 
-**1 全球网络覆盖**: `Cloudflare` 拥有遍布 330 多个城市的数据中心网络，使得其负载均衡服务能够在全球范围内更快速、更高效地分发流量。
+### Problem 1: Failover Recovery
 
-**2 与CDN的无缝集成**: `Cloudflare` 的负载均衡服务与其 `CDN` 服务紧密集成。
+由于 `CF Load Balancing` 的 `endpoint` 是 `k8s` 集群的流量入口，而 `CF Load Balancing` 的 `health check` 无法对容器网络的 `pod` 进行健康检查，只能对暴露在公网的 `nginx: 80/443` 进行健康检查。
 
-**3 DDoS防护**: `Cloudflare` 的负载均衡服务由其 `DDoS` 防护 `DNS` 支持。
+这就会导致一种情况：当集群内的 `pod` 出现故障而上层的 `nginx 80/443` 健康时，`CF` 仍然会错误地将流量转发至不可用的 `pod`，而不能实现自动降级；只有当被健康检查的对象 `nginx: 80/443` 出现异常时，才能实现流量降级。
 
-**4 多云和混合云支持**: `Cloudflare` 的负载均衡服务可以跨多个云部署进行智能流量分配，包括私有云、公有云和混合云环境，而不局限于单一云提供商的生态系统。
+这部分业务容器的告警功能只能自己另外实现。
 
-**5 成本效益**: 由于 `Cloudflare` 的服务是作为统一平台的一部分提供的，企业可能发现使用 `Cloudflare` 的负载均衡服务比单独购买和管理多个公有云提供商的 `GTM` 服务更具成本效益。
+### Problem 2: Concurrency Limit
 
+[CF Load Balancing Free Edition 的 websocket 并发限制约为 40000](https://www.sunway.run/blog/CloudflareWSConnectionLimit)，这部分测试结果对不同用户可能有些许差异。如果 `RPC` 服务的并发请求数超过这个限制，`CF Load Balancing` 会返回 `503 Error`，而且不会触发 `Webhook Alert`，所以最好升级 `domain` 至 `pro edition` 甚至 `business edition`。
 
-遇到的问题：
+### Problem 3: Traffic Steering Policy
 
-1: Failover Recovery Limit：由于负载均衡器的 endpoint 是 k8s 集群，而 CF Load Balancing 的 health check 无法对内网的 pod 进行健康检查，只能对暴露在外网的 nginx: 80/443 进行检查。
+比如使用的路由策略是 `Proximity Steering`，一般来说最短路径会比较快，但也可能出现路由差的情况，比如日本用户根据 `CF` 的路由策略本该访问亚太的集群，当由于线路问题可能出现绕美的情况，从而导致请求变得更慢，购买`Argo Smart Routing`服务可能会有不错的性能提升。
 
-这就会导致一种情况：当集群内的 pod 出现故障而上层的 nginx 80/443 健康时，CF 仍然会错误的将流量转发至不可用的节点，而不能实现自动切换；只有当被健康检查的对象 nginx: 80/443 出现异常时，才能实现流量自动切换。
-
-2：Concurrency Limit：[CF Load Balancing Free Edition 的 websocket 并发限制约为 40000](https://www.sunway.run/blog/CloudflareWSConnectionLimit)，这是我自己的测试结果，可能与实际情况有所不同。如果 RPC 服务的并发请求数超过这个限制，CF Load Balancing 会返回 503 Error，而且不会触发 Webhook Alert。
-
-3：Traffic Steering Limit：
-
-比如使用的路由策略是 `Proximity Steering`，一般来说最短路径会比较快，但也可能出现路由差的情况，比如日本用户根据 CF 的路由策略本该访问亚太的集群，当由于线路问题可能出现绕美的情况，从而导致请求变得更慢，购买`Argo Smart Routing`服务可能会有不错的性能提升。
-
-再比如使用的路由策略是 `Dynamic Steering`，这个根据 CF 不同地域的健康检查探针的 latency 结果来路由，但这个 latency 只是针对健康检查探针所在地域来说的，并不一定是用户对源站的 latency，所以这个策略不能提供最优的路由。
+再比如使用的路由策略是 `Dynamic Steering`，这个根据 `CF` 不同地域的健康检查探针的 `latency` 结果来路由，但这个 `latency` 只是针对健康检查探针所在地域来说的，并不一定是用户对源站的 `latency`，所以这个策略也不能提供最优的路由。
 
 - **Off**: Cloudflare will route pools in failover order.
-- **Dynamic steering**: Route traffic to the fastest pool based on measured latency from health checks.
+- **Dynamic steering**: Route traffic to the fastest pool based on **measured latency from health checks.**
 - **Geo steering**: Route to specific pools based on the Cloudflare region serving the request.
 - **Proximity steering**: Route requests to the closest physical pool.
 - **Random steering**: Route to a healthy pool at random or weighted random.
 - **Least outstanding requests steering**: Route traffic based on pool weights and number of pending requests.
 
-4：Block Finalization Problem: 引入新的架构后，出现了单节点架构不存在的问题。
+### Problem 4: Block Finalization Problem
 
-> 背景知识：数据上链的过程包括广播（broadcast）和最终确认（finalize）等重要步骤。创建的交易被发送到网络中的一个节点，该节点验证交易的格式和签名，如果验证通过，节点会交易转发给其他相连的节点，这个过程迅速重复，使交易在整个网络中传播。然后网络中的共识矿工会根据自身的共识机制将数据打包出块；一旦一个区块被创建并通过共识，它会被广播到网络中的其他节点，然后其他节点验证这个新区块的有效性。随着更多的区块被添加到这个区块之上，交易的确认度增加。通常，等待几个确认（即在该区块之上又添加了几个新区块）后，交易被认为是最终确认（finalize）的。确认数的要求因不同的区块链网络而异，比特币通常建议等待6个确认。一旦交易被最终确认，它就被认为是不可逆的。这意味着交易和包含它的区块已经成为区块链的永久部分，除非发生极不可能的情况（如51%攻击）。
+分布式架构的 `区块最终确认问题`
 
-如架构图所示，3 个地域的 k8s 集群共 6 个实例。
+> 背景知识：数据上链的过程包括广播（broadcast）和最终确认（finalize）等重要步骤。
+创建的交易被发送到网络中的一个节点，该节点验证交易的格式和签名，如果验证通过，节点会交易转发给其他相连的节点，这个过程迅速重复，使交易在整个网络中传播。
+然后网络中的共识矿工会根据自身的共识机制将数据打包出块；一旦一个区块被创建并通过共识，它会被广播到网络中的其他节点，然后其他节点验证这个新区块的有效性。
+最终确认的时间因不同的区块链网络而异，比如BTC通常建议等待6个确认。
+
+如架构图所示，3 个地域的 k8s 集群共 6 个 pod 实例。
 
 
 <span style={{color: 'red'}}>Scenario: A</span>
@@ -143,3 +241,34 @@ spec:
 当用户在浏览器端调用 RPC 方法创建一个 token 后，用户使用这个 token 去向 DeApp server 发起请求，DeApp Server 去验证 token 的合法性时仍然可能出现 token invalid or token no exist 的问题，因为无法保证 DeApp Server 和用户浏览器请求的不是相同的k8s集群中的同一个rpc pod，所以还是可能会出现请求失败的问题，甚至 DeApp Server 根本没有请求官方的 RPC，而是自己搭建了 RPC 供自己 DeApp 调用
 
 **当然还有其他的异常情况，比如可能是链本身交易失败的问题，但大部分还是因为区块未同步导致的 rpc 节点之间的数据不对称。最终的解决方案还是取决于链的出块时间，比如出块时间 6s，应用层再根据这个出块时间来做相应的调整**
+
+### Problem 5: Backup policy
+
+由于业务的特殊性，`HPA/AutoScale` 等功能在当前场景中可能无法很好地发挥作用。（这点可能和 k8s 弹性伸缩的特性相违背）
+
+比如将 `rpc pod replicas` 从 2 扩容到 4， 实际上新的 rpc 实例是无法提供正常服务的，它是有状态的，因为新的 `rpc` 实例需要从 0 开始同步区块数据（每个rpc节点的数据有唯一标识，不能直接 copy 其他实例的数据来用）。
+
+当链运行的越久，区块数量越多，需要同步的时间就越多，一般新的实例需要至少等待 2~3 小时才能完成区块同步，之后才能正常提供服务。
+
+所以，当节点需要扩容时，只能在 `Cloudflare Load Balancing` 上添加或者替换新的 `endpoint`，而不能直接扩容 k8s 集群中的 pod。
+
+总结：当 k8s 集群宕机时，直接在 `CF Load Balancing` 上替换其他可用的 `endpoint`，当 k8s 集群恢复时，再变更 `CF Load Balancing` 的 `endpoint` 即可。
+
+
+## Advantage
+
+这个架构的优点就是可以为跨地域的分布式服务提供一个统一的访问入口，以及优雅地实现不同地域流量调度
+
+因为 `CF Load Balancing` 默认是被 `Cloudflare` 代理的，所以用户请求的流量首先会访问 `Cloudflare`, 在经过 `Cloudflare` 的 `AntiDdos/Rules/WAF/LoadBalancing...` 链路后，才会被转发到源站。
+
+选择 `Cloudflare Load Balancing` 而非其他公有云 GTM 服务的原因：
+
+**1 全球网络覆盖**: `Cloudflare` 拥有遍布 330 多个城市的数据中心网络，使得其负载均衡服务能够在全球范围内更快速、更高效地分发流量。
+
+**2 与CDN的无缝集成**: `Cloudflare` 的负载均衡服务与其 `CDN` 服务紧密集成。
+
+**3 DDoS防护**: `Cloudflare` 的负载均衡服务由其 `DDoS` 防护 `DNS` 支持。
+
+**4 多云和混合云支持**: `Cloudflare` 的负载均衡服务可以跨多个云部署进行智能流量分配，包括私有云、公有云和混合云环境，而不局限于单一云提供商的生态系统。
+
+**5 成本效益**: 由于 `Cloudflare` 的服务是作为统一平台的一部分提供的，一般会比单独购买和管理多个公有云提供商的 `GTM` 服务更具成本效益。

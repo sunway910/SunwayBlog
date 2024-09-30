@@ -6,7 +6,7 @@ const siteMetadata = {
   description: '',
   language: 'en-us',
   theme: 'system', // system, dark or light
-  siteUrl: 'https://blogs.runsunway.com',
+  siteUrl: 'https://sunway.run',
   siteRepo: 'https://github.com/sunway910/SunwayBlog',
   siteLogo: '/static/images/logo.png',
   socialBanner: '/static/images/twitter-card.png',

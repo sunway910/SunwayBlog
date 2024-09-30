@@ -47,7 +47,7 @@ Null
 server {
      listen 80;
      root /apps/blog/build;
-     server_name blogs.runsunway.com;
+     server_name sunway.run;
      location / {
         index index.html;
         try_files $uri /$uri /index.html;
@@ -61,7 +61,7 @@ server {
 server {
      listen 80;
      root /apps/blog/build;
-     server_name blogs.runsunway.com;
+     server_name sunway.run;
      location / {
         index index.html;
         try_files $uri $uri.html /$uri /index.html;
@@ -71,11 +71,11 @@ server {
 
 `try_files` 配置多加一个`$uri.html`以便于直接通过`URL`访问特定的博客
 
-比如直接访问这篇博客: https://blogs.runsunway.com/blog/Software-Based-Router
+比如直接访问这篇博客: https://sunway.run/blog/Software-Based-Router
 
 如果不加`$uri.html`则无法匹配在`root /apps/blog/build`下匹配正确的`URI`，会根据`try_files /index.html`规则直接跳转 `index.html 首页`
 
-不加`$uri.html`就只能在`URL`后补全`.html`：https://blogs.runsunway.com/blog/Software-Based-Router.html
+不加`$uri.html`就只能在`URL`后补全`.html`：https://sunway.run/blog/Software-Based-Router.html
 
 
 

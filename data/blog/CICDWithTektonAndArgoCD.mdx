@@ -1,0 +1,755 @@
+---
+title: CICD With Tekton and ArgoCD
+date: '2024-10-05'
+tags: ['Tech', 'CICD', 'Kubernetes']
+draft: true
+summary: 使用 Tekton & ArgoCD 实现 CICD
+---
+
+<TOCInline toc={props.toc} indentDepth={3} fromHeading={1} toHeading={6}/>
+
+In this blog, you can implement a ci/cd demo with `tekton` adn `argocd`
+
+- **Flow 1:** User push or pull_request to a private GitHub repo
+- **Flow 2:** GitHub Repo Webhook send a request to tekton eventListener
+- **Flow 3:** EventListener determines whether it needs to create a pipelineRun based on the triggerTemplate according to the conditions define in filter.
+- **Flow 4:** EventListener create a pipelineRun which contains 3 task: git clone, docker build and push, update helm chart image tag
+- **Flow 5:** Argocd auto sync helm files in GitHub repo after task3(update image tag) execute successfully
+- **Flow 6:** Argocd use the latest image to build a new pod and then delete the old one
+
+
+## 1 Prerequisite
+
+### 1.1 Install Tekton
+```bash
+# https://tekton.dev/docs/installation/pipelines/
+```
+
+### 1.2 Intall ArgCD
+```bash
+# https://argo-cd.readthedocs.io/en/stable/getting_started/
+```
+
+### 1.3 Prepare a git repo with helm or kustomize
+```bash
+git clone https://github.com/sunway910/cicd-demo
+cd cicd-demo-helm
+```
+
+### 1.4 Secret Configuration
+
+**Create Docker Credential Secret**
+```bash
+# If your repo is private, please generate the secret as below
+
+# Tekton task kaniko use this secret to push image to a docker repo
+kubectl create secret docker-registry docker-cred \
+  --docker-server=https://index.docker.io/v1/ \
+  --docker-username="sunway" \
+  --docker-password="sunway.run" \
+  --docker-email="hello@sunway.run"
+```
+
+**Create GitHub Credential Secret**
+
+```bash
+# Tekton use this secret to clone and push to a private git repo
+# Please delete all configuration like github-cred in this blog if git repo is a public repo
+kubectl create secret generic github-cred \
+  --from-file=id_rsa=/root/.ssh/id_rsa \
+  --from-file=known_hosts=/root/.ssh/known_hosts
+```
+
+**Set argocd server insecure if you want**
+
+```bash
+# set argocd tls: https://argo-cd.readthedocs.io/en/stable/operator-manual/tls/
+# set insecure mode if you want
+kubectl edit cm -n argocd argocd-cmd-params-cm
+
+# add data in comfigmap as below
+data:
+  server.insecure: "true"
+
+kubectl rollout restart deployment argocd-server -n argocd
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+```
+
+**Create non-admin user for dev-team**
+- Ref1: [Official docs](https://argo-cd.readthedocs.io/en/stable/operator-manual/user-management/)
+- Ref2: [Create a user with different permission](https://devops.supportsages.com/create-new-user-account-in-argo-cd-with-read-only-access-2a6e0df6df13)
+
+
+
+## 2 Build Pipeline
+
+### 2.0 Create SA
+
+`sunway123` is the secret you should set in your GitHub repo webhook
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: github-triggers-secret
+type: Opaque
+stringData:
+  secretToken: "sunway123"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tekton-triggers-github-sa
+secrets:
+  - name: github-triggers-secret
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: tekton-triggers-github-minimal
+rules:
+  # EventListeners need to be able to fetch all namespaced resources
+  - apiGroups: ["triggers.tekton.dev"]
+    resources:
+      ["eventlisteners", "triggerbindings", "triggertemplates", "triggers"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    # configmaps is needed for updating logging config
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+  # Permissions to create resources in associated TriggerTemplates
+  - apiGroups: ["tekton.dev"]
+    resources: ["pipelineruns", "pipelineresources", "taskruns"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["serviceaccounts"]
+    verbs: ["impersonate"]
+  - apiGroups: ["policy"]
+    resources: ["podsecuritypolicies"]
+    resourceNames: ["tekton-triggers"]
+    verbs: ["use"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: tekton-triggers-github-binding
+subjects:
+  - kind: ServiceAccount
+    name: tekton-triggers-github-sa
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: tekton-triggers-github-minimal
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: tekton-triggers-github-clusterrole
+rules:
+  - apiGroups: ["triggers.tekton.dev"]
+    resources: ["clustertriggerbindings", "clusterinterceptors","interceptors"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: tekton-triggers-github-clusterbinding
+subjects:
+  - kind: ServiceAccount
+    name: tekton-triggers-github-sa
+    namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tekton-triggers-github-clusterrole
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pipeline-account
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kube-api-secret
+  annotations:
+    kubernetes.io/service-account.name: pipeline-account
+type: kubernetes.io/service-account-token
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: pipeline-role
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pipeline-role-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: pipeline-role
+subjects:
+  - kind: ServiceAccount
+    name: pipeline-account
+```
+
+Use command `kubectl apply -f task-git-clone.yaml` to add task: `git-clone`
+### 2.1 Task: Git Clone
+```yaml
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: git-clone
+spec:
+  workspaces:
+    - name: output
+      description: The git repo will be cloned onto the volume backing this workspace
+    - name: ssh-directory
+  params:
+    - name: repo_url
+      description: git repo url to clone
+      type: string
+    - name: revision
+      description: git revision to checkout (branch, tag, sha, ref…)
+      type: string
+      default: main
+    - name: submodules
+      description: defines if the resource should initialize and fetch the submodules
+      type: string
+      default: "true"
+    - name: depth
+      description: performs a shallow clone where only the most recent commit(s) will be fetched
+      type: string
+      default: "1"
+    - name: sslVerify
+      description: defines if http.sslVerify should be set to true or false in the global git config
+      type: string
+      default: "true"
+    - name: subdirectory
+      description: subdirectory inside the "output" workspace to clone the git repo into
+      type: string
+      default: ""
+    - name: deleteExisting
+      description: clean out the contents of the repo's destination directory (if it already exists) before trying to clone the repo there
+      type: string
+      default: "false"
+  results:
+    - name: commit
+      description: The precise commit SHA that was fetched by this Task
+  steps:
+    - name: clone
+      image: gcriotekton/pipeline-git-init:latest
+      securityContext:
+        runAsUser: 0 # This needs root, and git-init is nonroot by default
+      script: |
+        #!/usr/bin/env sh
+        set -eu
+        if [[ -d $(workspaces.ssh-directory.path) ]]; then
+          mkdir -p ~/.ssh
+          cp $(workspaces.ssh-directory.path)/known_hosts ~/.ssh/known_hosts
+          cp $(workspaces.ssh-directory.path)/id_rsa ~/.ssh/id_rsa
+          chmod 700 ~/.ssh
+          chmod 600 ~/.ssh/*
+        fi
+        CHECKOUT_DIR="$(workspaces.output.path)/$(params.subdirectory)"
+        cleandir() {
+          # Delete any existing contents of the repo directory if it exists.
+          #
+          # We don't just "rm -rf $CHECKOUT_DIR" because $CHECKOUT_DIR might be "/"
+          # or the root of a mounted volume.
+          if [[ -d "$CHECKOUT_DIR" ]] ; then
+            # Delete non-hidden files and directories
+            rm -rf "$CHECKOUT_DIR"/*
+            # Delete files and directories starting with . but excluding ..
+            rm -rf "$CHECKOUT_DIR"/.[!.]*
+            # Delete files and directories starting with .. plus any other character
+            rm -rf "$CHECKOUT_DIR"/..?*
+          fi
+        }
+        if [[ "$(params.deleteExisting)" == "true" ]] ; then
+          cleandir
+        fi
+        /ko-app/git-init \
+          -url "$(params.repo_url)" \
+          -revision "$(params.revision)" \
+          -path "$CHECKOUT_DIR" \
+          -sslVerify="$(params.sslVerify)" \
+          -submodules="$(params.submodules)" \
+          -depth="$(params.depth)"
+        cd "$CHECKOUT_DIR"
+        git checkout "$(params.revision)"
+        RESULT_SHA="$(git rev-parse HEAD | tr -d '\n')"
+        EXIT_CODE="$?"
+        if [ "$EXIT_CODE" != 0 ]
+        then
+          exit $EXIT_CODE
+        fi
+        # Make sure we don't add a trailing newline to the result!
+        echo -n "$RESULT_SHA" > $(results.commit.path)
+```
+
+### 2.2 Task: Docker Build And Push
+Use command `kubectl apply -f task-kaniko.yaml` to add task: `kaniko-build-and-push`
+```yaml
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: kaniko-build-and-push
+spec:
+  workspaces:
+    - name: source
+      description: Holds the context and Dockerfile
+    - name: dockerconfig
+      description: Includes a docker `config.json`
+      optional: true
+      mountPath: /kaniko/.docker
+  params:
+    - name: IMAGE
+      description: Name (reference) of the image to build.
+    - name: DOCKERFILE
+      description: Path to the Dockerfile to build.
+      default: ./Dockerfile
+    - name: CONTEXT
+      description: The build context used by Kaniko.
+      default: ./
+    - name: EXTRA_ARGS
+      type: array
+      default: [--ignore-path=/product_uuid]
+    - name: BUILDER_IMAGE
+      description: The image on which builds will run
+      default: gcr.io/kaniko-project/executor:latest
+  results:
+    - name: IMAGE_DIGEST
+      description: Digest of the image just built.
+    - name: IMAGE_URL
+      description: URL of the image just built.
+  steps:
+    - name: build-and-push
+      workingDir: $(workspaces.source.path)
+      image: $(params.BUILDER_IMAGE)
+      args:
+        - $(params.EXTRA_ARGS)
+        - --dockerfile=$(params.DOCKERFILE)
+        - --context=$(workspaces.source.path)/$(params.CONTEXT) # The user does not need to care the workspace and the source.
+        - --destination=$(params.IMAGE)
+        - --digest-file=$(results.IMAGE_DIGEST.path)
+      # kaniko assumes it is running as root, which means this example fails on platforms
+      # that default to run containers as random uid (like OpenShift). Adding this securityContext
+      # makes it explicit that it needs to run as root.
+      securityContext:
+        runAsUser: 0
+    - name: write-url
+      image: docker.io/library/bash:5.1.4@sha256:c523c636b722339f41b6a431b44588ab2f762c5de5ec3bd7964420ff982fb1d9
+      script: |
+        set -e
+        image="$(params.IMAGE)"
+        echo -n "${image}" | tee "$(results.IMAGE_URL.path)"
+```
+
+### 2.3 Task: Update Image Tag In Helm Chart
+Use command `kubectl apply -f task-update-image-tag.yaml` to add task: `task-update-image-tag`
+
+```yaml
+
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: update-image-tag
+spec:
+  workspaces:
+    - name: source
+    - name: ssh-directory
+  params:
+    - name: commit_id
+      description: result of git commit
+    - name: project_path
+      description: which deployment path to update
+  steps:
+    - name: update-image-tag
+      image: alpine/git
+      script: |
+        #!/usr/bin/env sh
+        set -eu
+        if [[ -d $(workspaces.ssh-directory.path) ]]; then
+          mkdir -p ~/.ssh
+          cp $(workspaces.ssh-directory.path)/known_hosts ~/.ssh/known_hosts
+          cp $(workspaces.ssh-directory.path)/id_rsa ~/.ssh/id_rsa
+          chmod 700 ~/.ssh
+          chmod 600 ~/.ssh/*
+        fi
+
+        # git init only required in storageClass like nfs, do not required storageClass like csi..., cause nfs deny git search its parent working tree
+        # git init
+        git clone git@github.com:sunway910/cicd-demo.git
+        git checkout "$(params.revision)"
+
+        # cd https://github.com/sunway910/cicd-demo/cicd-demo-helm
+        cd "$(project_path)"
+        # update image tag to the latest one
+        sed -i "s|tag:.*|tag: $(params.commit_id)|" values.yaml || { echo "Failed to update values.yaml"; exit 1; }
+
+        git config --global user.email "tekton@sunway.run"
+        git config --global user.name "Tekton Bot"
+
+        git add values.yaml
+        git commit -m "skip ci: update image tag to $(params.commit_id)" || { echo "Failed to commit changes"; exit 1; }
+        git push || { echo "Failed to push changes"; exit 1; }
+      securityContext:
+        runAsUser: 0
+```
+
+### 2.4 Create A Pipeline
+Use command `kubectl apply -f pipeline.yaml` to create pipeline: `cicd-demo-pipeline`
+```yaml
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: cicd-demo-pipeline
+spec:
+  params:
+    # clone from which repo and revision
+    - name: repo_url
+      type: string
+    - name: repo_revision
+      type: string
+    # push image to which registry and repository
+    - name: image-registry
+      default: docker.io/sunway
+    - name: image-repo-name
+      type: string
+  workspaces:
+    - name: git-source
+    - name: docker-cred
+    - name: github-cred
+  tasks:
+    - name: fetch-from-git
+      taskRef:
+        name: git-clone
+      params:
+        - name: repo_url
+          value: $(params.repo_url)
+        - name: revision
+          value: $(params.repo_revision)
+        - name: deleteExisting
+          value: "true"
+      workspaces:
+        - name: output
+          workspace: git-source
+        - name: ssh-directory
+          workspace: github-cred
+    - name: build-image
+      runAfter: [ fetch-from-git ]
+      taskRef:
+        name: kaniko-build-and-push
+      params:
+        - name: IMAGE
+          value: $(params.image-registry)/$(params.image-repo-name):$(tasks.fetch-from-git.results.commit)
+        - name: CONTEXT
+          value: ""
+        - name: DOCKERFILE
+          value: $(workspaces.source.path)/Dockerfile
+      workspaces:
+        - name: source
+          workspace: git-source
+        - name: dockerconfig
+          workspace: docker-cred
+    - name: update-image-tag
+      runAfter: [ build-image ]
+      taskRef:
+        name: update-image-tag
+      params:
+        - name: commit_id
+          value: $(tasks.fetch-from-git.results.commit)
+        # cd https://github.com/sunway910/cicd-demo/$project_path
+        - name: project_path
+          value: cicd-demo-helm
+      workspaces:
+        - name: source
+          workspace: git-source
+        - name: ssh-directory
+          workspace: github-cred
+```
+
+### 2.5 Create TriggerTemplate
+Use command `kubectl apply -f triggertemplate.yaml` to create triggertemplate: `cicd-demo-github-template`
+```yaml
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerTemplate
+metadata:
+  name: cicd-demo-github-template
+spec:
+  params:
+    - name: gitrevision
+    - name: gitrepositoryurl
+  resourceTemplates:
+    - apiVersion: tekton.dev/v1
+      kind: PipelineRun
+      metadata:
+        generateName: tekton-sunway-cicd-demo-
+      spec:
+        pipelineRef:
+          name: cicd-demo-pipeline
+        taskRunTemplate:
+          serviceAccountName: pipeline-account
+        workspaces:
+          - name: git-source
+            volumeClaimTemplate:
+              spec:
+                accessModes:
+                  - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: 10Gi
+                #storageClassName: csi
+          - name: docker-cred
+            secret:
+              defaultMode: 420
+              items:
+                - key: .dockerconfigjson
+                  path: config.json
+              secretName: docker-cred
+          - name: github-cred
+            secret:
+              defaultMode: 420
+              secretName: github-cred
+        params:
+          - name: repo_url
+            value: $(tt.params.gitrepositoryurl)
+          - name: repo_revision
+            value: $(tt.params.gitrevision)
+          - name: image-registry
+            value: docker.io/sunway
+          - name: image-repo-name
+            value: cicd-demo
+```
+
+### 2.6 Create TriggerBinding
+Use command `kubectl apply -f triggerbinding.yaml` to create triggerbinding: `github-push-binding`
+```yaml
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerBinding
+metadata:
+  name: github-push-binding
+spec:
+  params:
+    - name: gitrevision
+      value: $(body.head_commit.id)
+    - name: gitrepositoryurl
+      value: $(body.repository.ssh_url)
+    - name: gitbranch
+      value: $(body.ref)
+```
+
+### 2.6 Create EventListener
+Use command `kubectl apply -f eventlistener.yaml` to create eventlistener: `cicd-demo-github-listener`
+
+Trigger Condition:
+- 1: repo name is equal to `cicd-demo`
+- 2: commit message does not contains `skip ci`.
+- 3: push/pull_request on main/master branch
+
+```yaml
+apiVersion: triggers.tekton.dev/v1beta1
+kind: EventListener
+metadata:
+  name: cicd-demo-github-listener
+spec:
+  serviceAccountName: tekton-triggers-github-sa
+  triggers:
+    - name: cicd-demo-github-listener
+      interceptors:
+        - ref:
+            name: "github"
+          params:
+            - name: "secretRef"
+              value:
+                secretName: github-triggers-secret
+                secretKey: secretToken
+            - name: "eventTypes"
+              value: [ "push", "pull_request" ]
+        - ref:
+            # Common Expression Language
+            name: "cel"
+          params:
+            - name: "filter"
+              # https://github.com/sunway910/cicd-demo
+              value: "body.repository.name == 'cicd-demo' && !body.head_commit.message.contains('skip ci') && (body.ref == 'refs/heads/main' || body.ref == 'refs/heads/master')"
+      bindings:
+        - ref: github-push-binding
+      template:
+        ref: cicd-demo-github-template
+
+```
+
+
+
+## 3 Create Ingress
+
+### 3.1 Create EventListener Ingress
+
+GitHub Repo Webhook will send request to this ingress: `git-listener-cicd-demo.sunway.run`
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pipeline-ingress
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: git-listener-cicd-demo.sunway.run
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: cicd-demo-github-listener
+                port:
+                  number: 8080
+```
+
+### 3.2 Create Tekton Dashboard Ingress
+
+Access to `https://tekton-dashboard.sunway.run` and watch the tasks progress in pipelineRun after push/pull_request to GitHub repo...
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: tekton-dashboard-ingress
+  namespace: tekton-pipelines
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: tekton-dashboard.sunway.run
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: tekton-dashboard
+                port:
+                  number: 9097
+```
+
+### 3.2 Create Tekton Dashboard Ingress
+
+Access to `https://argocd.sunway.run` with user:`admin` and password: `kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d`
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-ingress
+  namespace: argocd
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: argocd.sunway.run
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: argocd-server
+                port:
+                  # set port to 443 if you do not disable tls in argocd-server in 1.4 Secret Configuration
+                  number: 80
+```
+
+
+## 4 ArgoCD Configuration
+
+### 4.1 Add Others Kubernetes Clusters
+
+Add Clusters which your want to deploy, so that you can [deploy service on multiple kubernetes cluster](https://devopscube.com/configure-multiple-kubernetes-clusters-argo-cd/)
+![ArgocdAddCluster](/static/images/ArgocdAddCluster.png)
+
+- **Step 1:** Login to Argo CD
+Make sure that you have updated the cluster details to the `kubeconfig` file and logged into Argo CD using Argo CD CLI, if not run the following command to log in to Argo CD.
+```bash
+argocd login https://argocd.sunway.run --username admin --password axDaGIswqYaaHxBs
+```
+
+- **Step 2:** Get the Context of the Cluster
+
+Once you have logged in to Argo CD, you need to find the context of the cluster you need to add to Argo CD.
+
+Run the following command to get the context from the `kubeconfig` file
+
+```bash
+# execute this on others kubernetes cluster and then get context name
+kubectl config get-contexts -o name
+```
+
+- **Step 3:** Add the Cluster
+To add the cluster to Argo CD, use the context of the running cluster you got from the previous step on the below command
+```bash
+# If you set proxy like cloudflare before others kubernetes api-server, you have to trust the proxy server certificate. Otherwise, you shouldn't set up a proxy on your api-server
+argocd cluster add --kubeconfig <path-of-kubeconfig-file> --kube-context string <cluster-context> --name <cluster-name>
+```
+This command will create a `service account Argo CD-manager` on the cluster you specify in the above command with full cluster privileges, so make sure you have the required permissions on the cluster.
+
+
+
+### 4.2 Create A Repositories
+
+connect to a private repo via ssh as below
+
+![ArgocdNewRepo](/static/images/ArgocdNewRepo.png)
+
+### 4.3 Create An Application as below
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cicd-demo
+spec:
+  destination:
+    name: ''
+    namespace: app
+    server: https://kubernetes.default.svc
+  source:
+    path: cicd-demo-helm
+    repoURL: https://github.com/sunway910/cicd-demo
+    targetRevision: main
+  sources: []
+  project: default
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: false
+```
+![ArgoCDCreateApp1](/static/images/ArgoCDCreateApp1.jpg)
+![ArgoCDCreateApp2](/static/images/ArgoCDCreateApp2.jpg)
+
+## 5 Github Webhook
+Set github webhook to tekton eventListener as below
+
+```text
+Payload URL: https://git-listener-cicd-demo.sunway.run/github
+Content type: application/json
+Secret: sunway123
+```
+![TektonGitWebhook](/static/images/TektonGitWebhook.png)
+
+
+## 6 Testing
+
+You can see your application after you create your own application at `4.3`
+
+Application indicate `processing` cause argocd cant check ingress health, it is a normal status if you use `nginx ingress` or something else. [ [ref1](https://argo-cd.readthedocs.io/en/stable/faq/#why-is-my-application-stuck-in-progressing-state), [ref2](https://docs.nginx.com/nginx-ingress-controller/configuration/global-configuration/reporting-resources-status/) ]
+
+![ArgocdAppProcessing](/static/images/ArgocdAppProcessing.png)
+
+After you check application is healthy, you can push new code to your GitHub repo and then check `pipelineRun` on Tekton Dashboard.
+
+ArgoCD will auto sync the `image tag` changes in `values.yaml` when pipelineRun done.
+
+[Argocd will sync every `180 seconds` automatically](https://argo-cd.readthedocs.io/en/release-2.5/faq/#:~:text=The%20default%20polling%20interval%20is,the%20auto%2Dsync%20setting%20enabled.), but you can also `click sync` manually to sync immediately.
+
+
+

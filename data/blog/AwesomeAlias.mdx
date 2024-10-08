@@ -157,6 +157,7 @@ alias kdesc="kubectl describe"
 alias ktop="kubectl top"
 alias klog="kubectl logs -f"
 alias knode="kubectl get nodes -o wide"
+alias kdeletep='kubectl delete po'
 kexec() { kubectl exec $1 -n $2 -it -- /bin/bash ;}
 kgetpoy() { kubectl get po $1 -n $2 -o yaml ;}
 

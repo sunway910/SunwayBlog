@@ -23,17 +23,39 @@ In this blog, you can implement a ci/cd demo with `tekton` adn `argocd`
 ### 1.1 Install Tekton
 ```bash
 # https://tekton.dev/docs/installation/pipelines/
+
+# kubectl apply -f https://raw.githubusercontent.com/stakater/Reloader/master/deployments/kubernetes/reloader.yaml
+
+kubectl apply --filename https://storage.googleapis.com/tekton-releases/pipeline/latest/release.yaml
+kubectl apply --filename https://storage.googleapis.com/tekton-releases/dashboard/latest/release.yaml
+kubectl apply --filename https://storage.googleapis.com/tekton-releases/triggers/latest/release.yaml
+kubectl apply --filename https://storage.googleapis.com/tekton-releases/triggers/latest/interceptors.yaml
+
+# Tekton Client RPM install
+rpm -Uvh  https://github.com/tektoncd/cli/releases/download/v0.38.0/tektoncd-cli-0.38.0_Linux-64bit.rpm
+
+# Tekton Client DEB install
+wget https://github.com/tektoncd/cli/releases/download/v0.38.0/tektoncd-cli-0.38.0_Linux-64bit.deb
+dpkg -i tektoncd-cli-0.38.0_Linux-64bit.deb && rm -f tektoncd-cli-0.38.0_Linux-64bit.deb
 ```
 
 ### 1.2 Intall ArgCD
 ```bash
 # https://argo-cd.readthedocs.io/en/stable/getting_started/
+
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+# Install ArgoCD CLI
+VERSION=$(curl -L -s https://raw.githubusercontent.com/argoproj/argo-cd/stable/VERSION)
+wget https://github.com/argoproj/argo-cd/releases/download/v$VERSION/argocd-linux-amd64
+sudo install -m 555 argocd-linux-amd64 /usr/bin/argocd
+rm argocd-linux-amd64
 ```
 
 ### 1.3 Prepare a git repo with helm or kustomize
 ```bash
 git clone https://github.com/sunway910/cicd-demo
-cd cicd-demo-helm
 ```
 
 ### 1.4 Secret Configuration
@@ -85,7 +107,8 @@ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.pas
 
 ### 2.0 Create SA
 
-`sunway123` is the secret you should set in your GitHub repo webhook
+`sunway123` is the `secret` you should set in your `GitHub Repo Webhook`
+
 ```yaml
 apiVersion: v1
 kind: Secret
@@ -193,7 +216,8 @@ subjects:
     name: pipeline-account
 ```
 
-Use command `kubectl apply -f task-git-clone.yaml` to add task: `git-clone`
+Use command `kubectl apply -f task-git-clone.yaml` to add task: `git-clone`, you can also use command `tkn hub install task git-clone` to get task from hub and then customize the yaml file `kubectl get task git-clone -o yaml > task-git-clone.yaml` by yourself.
+
 ### 2.1 Task: Git Clone
 ```yaml
 apiVersion: tekton.dev/v1
@@ -289,7 +313,7 @@ spec:
 ```
 
 ### 2.2 Task: Docker Build And Push
-Use command `kubectl apply -f task-kaniko.yaml` to add task: `kaniko-build-and-push`
+Use command `kubectl apply -f task-kaniko.yaml` to add task: `kaniko-build-and-push`, you can also use command `tkn hub install task kaniko` to get task from hub and then customize the yaml file `kubectl get task kaniko -o yaml > task-kaniko.yaml` by yourself.
 ```yaml
 apiVersion: tekton.dev/v1beta1
 kind: Task
@@ -350,7 +374,6 @@ spec:
 Use command `kubectl apply -f task-update-image-tag.yaml` to add task: `task-update-image-tag`
 
 ```yaml
-
 apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
@@ -380,6 +403,7 @@ spec:
 
         # git init only required in storageClass like nfs, do not required storageClass like csi..., cause nfs deny git search its parent working tree
         # git init
+        # 'git@github.com:sunway910/cicd-demo.git' can be a param
         git clone git@github.com:sunway910/cicd-demo.git
         git checkout "$(params.revision)"
 
@@ -399,7 +423,14 @@ spec:
 ```
 
 ### 2.4 Create A Pipeline
+
 Use command `kubectl apply -f pipeline.yaml` to create pipeline: `cicd-demo-pipeline`
+
+customized `pipeline.yaml` file as below:
+
+- tasks `fetch-from-git`: params `Dockerfile` value is `$(workspaces.source.path)/Dockerfile`, modify the path if your Dockerfile is not in the root of your git repo.
+- tasks `update-image-tag`: params `project_path` value is `cicd-demo-helm`, modify the path if your helm/kustomize directory path.
+
 ```yaml
 apiVersion: tekton.dev/v1
 kind: Pipeline
@@ -472,6 +503,12 @@ spec:
 
 ### 2.5 Create TriggerTemplate
 Use command `kubectl apply -f triggertemplate.yaml` to create triggertemplate: `cicd-demo-github-template`
+
+customized `triggertemplate.yaml` file as below, task `update-image-tag` will push image to `docker.io/sunway/cicd-demo:$(params.commit_id)`:
+
+- image-registry: `docker.io/sunway`
+- image-repo-name: `cicd-demo`
+
 ```yaml
 apiVersion: triggers.tekton.dev/v1beta1
 kind: TriggerTemplate
@@ -545,7 +582,7 @@ Use command `kubectl apply -f eventlistener.yaml` to create eventlistener: `cicd
 
 Trigger Condition:
 - 1: repo name is equal to `cicd-demo`
-- 2: commit message does not contains `skip ci`.
+- 2: commit message does not contain `skip ci`.
 - 3: push/pull_request on main/master branch
 
 ```yaml
@@ -745,7 +782,7 @@ Application indicate `processing` cause argocd cant check ingress health, it is 
 
 ![ArgocdAppProcessing](/static/images/ArgocdAppProcessing.png)
 
-After you check application is healthy, you can push new code to your GitHub repo and then check `pipelineRun` on Tekton Dashboard.
+After you check application is healthy, you can **push code to your GitHub repo** and then check `pipelineRun` on Tekton Dashboard.
 
 ArgoCD will auto sync the `image tag` changes in `values.yaml` when pipelineRun done.
 

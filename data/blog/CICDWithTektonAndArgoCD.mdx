@@ -577,7 +577,7 @@ spec:
       value: $(body.ref)
 ```
 
-### 2.6 Create EventListener
+### 2.7 Create EventListener
 Use command `kubectl apply -f eventlistener.yaml` to create eventlistener: `cicd-demo-github-listener`
 
 Trigger Condition:
@@ -671,7 +671,7 @@ spec:
                   number: 9097
 ```
 
-### 3.2 Create Tekton Dashboard Ingress
+### 3.2 Create ArgoCD Dashboard Ingress
 
 Access to `https://argocd.sunway.run` with user:`admin` and password: `kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d`
 
@@ -778,7 +778,7 @@ Secret: sunway123
 
 You can see your application after you create your own application at `4.3`
 
-Application indicate `processing` cause argocd cant check ingress health, it is a normal status if you use `nginx ingress` or something else. [ [ref1](https://argo-cd.readthedocs.io/en/stable/faq/#why-is-my-application-stuck-in-progressing-state), [ref2](https://docs.nginx.com/nginx-ingress-controller/configuration/global-configuration/reporting-resources-status/) ]
+Application indicate `processing` cause argocd cant check the `ingress` health, it is a normal status if you use `nginx ingress` or something else. [ [ref1](https://argo-cd.readthedocs.io/en/stable/faq/#why-is-my-application-stuck-in-progressing-state), [ref2](https://docs.nginx.com/nginx-ingress-controller/configuration/global-configuration/reporting-resources-status/) ]
 
 ![ArgocdAppProcessing](/static/images/ArgocdAppProcessing.png)
 

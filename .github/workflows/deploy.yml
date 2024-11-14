@@ -9,15 +9,15 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Deploy to K8S Master
+      - name: Deploy to my VPS
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
-          key: ${{ secrets.K8S_MASTER_KEY }}
-          port: 22
+          key: ${{ secrets.PASSWORD }}
+          port: ${{ secrets.PORT }}
           script: |
-            cd /apps/SunwayBlog
+            cd /app/sunwayBlog
             git pull 
             yarn install
             yarn build

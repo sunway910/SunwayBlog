@@ -17,9 +17,5 @@ jobs:
           username: ${{ secrets.USERNAME }}
           password: ${{ secrets.PASSWORD }}
           script: |
-            nvm use 20
-            cd /app/sunwayBlog
-            git pull 
-            yarn install
-            yarn build
+            bash /app/sunwayBlog/build.sh
             

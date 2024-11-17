@@ -17,9 +17,6 @@ jobs:
           username: ${{ secrets.USERNAME }}
           password: ${{ secrets.PASSWORD }}
           script: |
-            source ~/.bashrc
-            which nvm
-            cat ~/.bashrc
             cd /app/sunwayBlog
             git pull 
             yarn install

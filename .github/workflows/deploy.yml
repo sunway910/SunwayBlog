@@ -18,6 +18,7 @@ jobs:
           password: ${{ secrets.PASSWORD }}
           script: |
             source ~/.bashrc
+            which yarn || npm install -g yarn
             cd /app/sunwayBlog
             git pull 
             yarn install

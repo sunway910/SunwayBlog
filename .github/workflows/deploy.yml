@@ -17,5 +17,15 @@ jobs:
           username: ${{ secrets.USERNAME }}
           password: ${{ secrets.PASSWORD }}
           script: |
-            bash /app/sunwayBlog/build.sh
+            echo "Before PATH modification:"
+            echo $PATH
+            which yarn || echo "yarn not found"
+            export PATH="/root/.nvm/versions/node/v20.18.0/bin:$PATH"
+            echo "After PATH modification:"
+            echo $PATH
+            which yarn || echo "yarn not found"
+            cd /app/sunwayBlog
+            git pull
+            yarn install
+            yarn build
             

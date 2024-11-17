@@ -13,9 +13,9 @@ jobs:
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.HOST }}
+          port: ${{ secrets.PORT }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.PASSWORD }}
-          port: ${{ secrets.PORT }}
           script: |
             cd /app/sunwayBlog
             git pull 

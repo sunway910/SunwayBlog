@@ -17,6 +17,7 @@ jobs:
           username: ${{ secrets.USERNAME }}
           password: ${{ secrets.PASSWORD }}
           script: |
+            source ~/.bashrc
             cd /app/sunwayBlog
             git pull 
             yarn install

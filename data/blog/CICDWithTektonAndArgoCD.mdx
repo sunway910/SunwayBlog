@@ -4,17 +4,18 @@ date: '2024-10-05'
 tags: ['Tech', 'CICD', 'Kubernetes']
 draft: false
 summary: 使用 Tekton & ArgoCD 实现 CICD
+lastmod: '2024-11-28'
 ---
 
 <TOCInline toc={props.toc} indentDepth={3} fromHeading={1} toHeading={6}/>
 
 In this blog, you can implement a ci/cd demo with `tekton` adn `argocd`
 
-- **Flow 1:** User push or pull_request to a private GitHub repo
+- **Flow 1:** User do a push or pull_request operation to a private GitHub repo
 - **Flow 2:** GitHub Repo Webhook send a request to tekton eventListener
 - **Flow 3:** EventListener determines whether it needs to create a pipelineRun based on the triggerTemplate according to the conditions define in filter.
-- **Flow 4:** EventListener create a pipelineRun which contains 3 task: git clone, docker build and push, update helm chart image tag
-- **Flow 5:** Argocd auto sync helm files in GitHub repo after task3(update image tag) execute successfully
+- **Flow 4:** EventListener create a pipelineRun which contains 4 task: `git clone`, `docker build and push`, `update helm chart image tag`, `send notification`
+- **Flow 5:** Argocd auto-sync helm files in GitHub repo after `task3(update helm chart image tag)` run successfully
 - **Flow 6:** Argocd use the latest image to build a new pod and then delete the old one
 
 
@@ -31,29 +32,29 @@ kubectl apply --filename https://storage.googleapis.com/tekton-releases/dashboar
 kubectl apply --filename https://storage.googleapis.com/tekton-releases/triggers/latest/release.yaml
 kubectl apply --filename https://storage.googleapis.com/tekton-releases/triggers/latest/interceptors.yaml
 
-# Tekton Client RPM install
+# Tekton Client RPM(Redhat/CentOS...) install
 rpm -Uvh  https://github.com/tektoncd/cli/releases/download/v0.38.0/tektoncd-cli-0.38.0_Linux-64bit.rpm
 
-# Tekton Client DEB install
+# Tekton Client DEB(Ubuntu/Debian...) install
 wget https://github.com/tektoncd/cli/releases/download/v0.38.0/tektoncd-cli-0.38.0_Linux-64bit.deb
 dpkg -i tektoncd-cli-0.38.0_Linux-64bit.deb && rm -f tektoncd-cli-0.38.0_Linux-64bit.deb
 ```
 
-### 1.2 Intall ArgCD
+### 1.2 Intall ArgoCD
 ```bash
 # https://argo-cd.readthedocs.io/en/stable/getting_started/
 
 kubectl create namespace argocd
 kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
-# Install ArgoCD CLI
+# Install ArgoCD CLI in x86_64 Linux
 VERSION=$(curl -L -s https://raw.githubusercontent.com/argoproj/argo-cd/stable/VERSION)
 wget https://github.com/argoproj/argo-cd/releases/download/v$VERSION/argocd-linux-amd64
 sudo install -m 555 argocd-linux-amd64 /usr/bin/argocd
 rm argocd-linux-amd64
 ```
 
-### 1.3 Prepare a git repo with helm or kustomize
+### 1.3 Prepare a demo git repo with helm or kustomize
 ```bash
 git clone https://github.com/sunway910/cicd-demo
 ```
@@ -97,7 +98,7 @@ kubectl rollout restart deployment argocd-server -n argocd
 kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
 ```
 
-**Create non-admin user for dev-team**
+**ArgoCD Create non-admin user for dev-team**
 - Ref1: [Official docs](https://argo-cd.readthedocs.io/en/stable/operator-manual/user-management/)
 - Ref2: [Create a user with different permission](https://devops.supportsages.com/create-new-user-account-in-argo-cd-with-read-only-access-2a6e0df6df13)
 
@@ -105,9 +106,10 @@ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.pas
 
 ## 2 Build Pipeline
 
-### 2.0 Create SA
+### 2.0 Create ServiceAccount
 
-`sunway123` is the `secret` you should set in your `GitHub Repo Webhook`
+`sunway123` is the `secret` should be set in your `GitHub Repo Webhook`
+<details><summary style={{color: "red"}}>sa.yaml</summary>
 
 ```yaml
 apiVersion: v1
@@ -216,9 +218,13 @@ subjects:
     name: pipeline-account
 ```
 
-Use command `kubectl apply -f task-git-clone.yaml` to add task: `git-clone`, you can also use command `tkn hub install task git-clone` to get task from hub and then customize the yaml file `kubectl get task git-clone -o yaml > task-git-clone.yaml` by yourself.
+</details>
 
 ### 2.1 Task: Git Clone
+Use command `kubectl apply -f task-git-clone.yaml` to add task: `git-clone`, you can also use command `tkn hub install task git-clone` to get task from hub and then customize the yaml file `kubectl get task git-clone -o yaml > task-git-clone.yaml` by yourself.
+
+<details><summary style={{color: "red"}}>task-git-clone.yaml</summary>
+
 ```yaml
 apiVersion: tekton.dev/v1
 kind: Task
@@ -260,6 +266,10 @@ spec:
   results:
     - name: commit
       description: The precise commit SHA that was fetched by this Task
+    - name: pipeline-start-time
+      description: "The start time of the pipeline"
+    - name: commit-info
+      description: "The latest commit info"
   steps:
     - name: clone
       image: gcriotekton/pipeline-git-init:latest
@@ -268,6 +278,8 @@ spec:
       script: |
         #!/usr/bin/env sh
         set -eu
+        export TZ=UTC-8
+        TZ='Asia/Shanghai' echo -n "$(date '+Date: %Y-%m-%d Time: %H:%M:%S')" > $(results.pipeline-start-time.path)
         if [[ -d $(workspaces.ssh-directory.path) ]]; then
           mkdir -p ~/.ssh
           cp $(workspaces.ssh-directory.path)/known_hosts ~/.ssh/known_hosts
@@ -283,7 +295,7 @@ spec:
           # or the root of a mounted volume.
           if [[ -d "$CHECKOUT_DIR" ]] ; then
             # Delete non-hidden files and directories
-            rm -rf "$CHECKOUT_DIR"/*
+            rm -rf "$CHECKOUT_DIR"
             # Delete files and directories starting with . but excluding ..
             rm -rf "$CHECKOUT_DIR"/.[!.]*
             # Delete files and directories starting with .. plus any other character
@@ -301,6 +313,8 @@ spec:
           -submodules="$(params.submodules)" \
           -depth="$(params.depth)"
         cd "$CHECKOUT_DIR"
+        git log -1 > $(results.commit-info.path)
+        # can checkout to a specific branch or revision
         git checkout "$(params.revision)"
         RESULT_SHA="$(git rev-parse HEAD | tr -d '\n')"
         EXIT_CODE="$?"
@@ -312,8 +326,13 @@ spec:
         echo -n "$RESULT_SHA" > $(results.commit.path)
 ```
 
+</details>
+
 ### 2.2 Task: Docker Build And Push
 Use command `kubectl apply -f task-kaniko.yaml` to add task: `kaniko-build-and-push`, you can also use command `tkn hub install task kaniko` to get task from hub and then customize the yaml file `kubectl get task kaniko -o yaml > task-kaniko.yaml` by yourself.
+
+<details><summary style={{color: "red"}}>task-kaniko.yaml</summary>
+
 ```yaml
 apiVersion: tekton.dev/v1beta1
 kind: Task
@@ -347,6 +366,8 @@ spec:
       description: Digest of the image just built.
     - name: IMAGE_URL
       description: URL of the image just built.
+    - name: image-build-end-time
+      description: "The end time of the build task"
   steps:
     - name: build-and-push
       workingDir: $(workspaces.source.path)
@@ -357,21 +378,24 @@ spec:
         - --context=$(workspaces.source.path)/$(params.CONTEXT) # The user does not need to care the workspace and the source.
         - --destination=$(params.IMAGE)
         - --digest-file=$(results.IMAGE_DIGEST.path)
-      # kaniko assumes it is running as root, which means this example fails on platforms
-      # that default to run containers as random uid (like OpenShift). Adding this securityContext
-      # makes it explicit that it needs to run as root.
       securityContext:
         runAsUser: 0
     - name: write-url
       image: docker.io/library/bash:5.1.4@sha256:c523c636b722339f41b6a431b44588ab2f762c5de5ec3bd7964420ff982fb1d9
       script: |
         set -e
+        export TZ=UTC-8
         image="$(params.IMAGE)"
         echo -n "${image}" | tee "$(results.IMAGE_URL.path)"
+        TZ='Asia/Shanghai' echo -n "$(date '+Date: %Y-%m-%d Time: %H:%M:%S')" > $(results.image-build-end-time.path)
 ```
+
+</details>
 
 ### 2.3 Task: Update Image Tag In Helm Chart
 Use command `kubectl apply -f task-update-image-tag.yaml` to add task: `task-update-image-tag`
+
+<details><summary style={{color: "red"}}>task-update-image-tag.yaml</summary>
 
 ```yaml
 apiVersion: tekton.dev/v1beta1
@@ -386,50 +410,259 @@ spec:
     - name: commit_id
       description: result of git commit
     - name: project_path
+      type: string
       description: which deployment path to update
+    - name: git_branch
+      description: git branch to checkout (branch, tag, sha, ref…)
+      type: string
+      default: main
+  results:
+    - name: pipeline-end-time
   steps:
     - name: update-image-tag
       image: alpine/git
       script: |
         #!/usr/bin/env sh
-        set -eu
-        if [[ -d $(workspaces.ssh-directory.path) ]]; then
-          mkdir -p ~/.ssh
-          cp $(workspaces.ssh-directory.path)/known_hosts ~/.ssh/known_hosts
-          cp $(workspaces.ssh-directory.path)/id_rsa ~/.ssh/id_rsa
-          chmod 700 ~/.ssh
-          chmod 600 ~/.ssh/*
-        fi
+        apk add --no-cache bash
+        export TZ=UTC-8
+        exec bash << 'EOF'
+          #!/usr/bin/env bash
+          set -eu
+          if [[ -d $(workspaces.ssh-directory.path) ]]; then
+            mkdir -p ~/.ssh
+            cp $(workspaces.ssh-directory.path)/known_hosts ~/.ssh/known_hosts
+            cp $(workspaces.ssh-directory.path)/id_rsa ~/.ssh/id_rsa
+            chmod 700 ~/.ssh
+            chmod 600 ~/.ssh/*
+          fi
 
-        # git init only required in storageClass like nfs, do not required storageClass like csi..., cause nfs deny git search its parent working tree
-        # git init
-        # 'git@github.com:sunway910/cicd-demo.git' can be a param
-        git clone git@github.com:sunway910/cicd-demo.git
-        git checkout "$(params.revision)"
+          # git init only required in network file system pvc, do not required in disk storage pvc, cause nfs deny git search its parent working tree
+          # git init
+          # 'git@github.com:sunway910/cicd-demo.git' can be a param
+          git clone git@github.com:sunway910/cicd-demo.git
+          cd cicd-demo
+          git checkout "$(echo $(params.git_branch) | rev | cut -d'/' -f1 | rev)"
 
-        # cd https://github.com/sunway910/cicd-demo/cicd-demo-helm
-        cd "$(project_path)"
-        # update image tag to the latest one
-        sed -i "s|tag:.*|tag: $(params.commit_id)|" values.yaml || { echo "Failed to update values.yaml"; exit 1; }
+          # cd https://github.com/sunway910/cicd-demo/cicd-demo-helm
+          cd "$(project_path)"
+          # update image tag to the latest one
+          sed -i "s|tag:.*|tag: $(params.commit_id)|" values.yaml || { echo "Failed to update values.yaml"; exit 1; }
 
-        git config --global user.email "tekton@sunway.run"
-        git config --global user.name "Tekton Bot"
 
-        git add values.yaml
-        git commit -m "skip ci: update image tag to $(params.commit_id)" || { echo "Failed to commit changes"; exit 1; }
-        git push || { echo "Failed to push changes"; exit 1; }
+          git config --global user.email "tekton@sunway.run"
+          git config --global user.name "Tekton Bot"
+          git add .
+          echo "Commit changes: skip ci: update image tag to $(params.commit_id)"
+          git commit -m "skip ci: update image tag to $(params.commit_id)" || { echo "Failed to commit changes"; exit 1; }
+          git push || { echo "Failed to push changes"; exit 1; }
+          TZ='Asia/Shanghai' echo -n "$(date '+Date: %Y-%m-%d Time: %H:%M:%S')" > $(results.pipeline-end-time.path)
+        EOF
       securityContext:
         runAsUser: 0
 ```
+</details>
 
-### 2.4 Create A Pipeline
+### 2.4 Task: Send Notification (Optional)
+The last task can be used to send notification to slack/email or `something else`, here is an example of sending notification to `lark`:
+
+Please kindly check your `IM Tool Docs` to get the `Webhook URL` and `Request Body Format`.
+
+Otherwise, you can just skip this task and delete it in your pipeline finally task.
+
+<details><summary style={{color: "red"}}>send-notification.yaml</summary>
+
+```yaml
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: send-notification-to-lark
+  labels:
+    app.kubernetes.io/version: "0.1"
+  annotations:
+    tekton.dev/pipelines.minVersion: "0.12.1"
+    tekton.dev/displayName: "Send message to Lark Group"
+    tekton.dev/categories: Messaging
+    tekton.dev/tags: messaging
+spec:
+  description: >-
+    These tasks post a simple message to a lark group.
+    This task uses Incoming Webhooks of lark to send the message.
+  params:
+    - name: message_type
+      type: string
+      default: "interactive"
+    - name: wide_screen_mode
+      type: string
+      default: "true"
+    - name: pipeline_title
+      type: string
+      default: "Demo Pipeline"
+    - name: pipeline_result
+      type: string
+      description: The result of the pipeline, can be "Succeeded" or "Failed"
+      default: "Succeeded"
+    - name: commit_info
+      type: string
+      default: "Author: Tekton Bot"
+    - name: pipeline_result_link
+      type: string
+      default: "https://tekton-dashboard.sunway.run/#/pipelineruns"
+    - name: github_commit_link
+      type: string
+      default: "https://github.com/sunway910/cicd-demo"
+    - name: mention_user_open_id
+      type: string
+      default: "all"
+    - name: pipeline_start_time
+      type: string
+      default: "2024-01-01 00:00:00"
+    - name: pipeline_end_time
+      type: string
+      default: "2024-01-01 01:00:00"
+    - name: webhook_url
+      type: string
+      default: ""
+  steps:
+    - name: lark-webhook
+      image: docker.io/curlimages/curl:7.70.0@sha256:031df77a11e5edded840bc761a845eab6e3c2edee22669fb8ad6d59484b6a1c4 #tag: 7.70.0
+      script: |
+        #!/bin/sh
+        set -e
+
+        # if params.pipeline_result is "Succeeded", then use set content color to green, else set it to red
+        # if params.pipeline_result is "Succeeded", then set pipeline_result_content to "The pipeline has completed successfully", else set it to "The pipeline has failed"
+        # The color of the lark webhook card, can be red, orange, yellow, green, blue, purple, gray
+        echo "pipeline_result: $(params.pipeline_result)"
+        PIPELINE_RESULT="$(params.pipeline_result)"
+        if [ "$PIPELINE_RESULT" = "Succeeded" ]; then
+          pipeline_result_content="The pipeline has completed successfully"
+          message_color="green"
+        else
+          pipeline_result_content="The pipeline has failed"
+          message_color="red"
+        fi
+        echo "Send to webhook_url: $(params.webhook_url)"
+
+        message_type="$(params.message_type)"
+        wide_screen_mode="$(params.wide_screen_mode)"
+        pipeline_title="$(params.pipeline_title)"
+        pipeline_start_time="$(params.pipeline_start_time)"
+        pipeline_end_time="$(params.pipeline_end_time)"
+        mention_user_open_id="$(params.mention_user_open_id)"
+        commit_info=$(echo -n "$(params.commit_info)" | awk 1 ORS='\\n')
+        pipeline_result_link="$(params.pipeline_result_link)"
+        github_commit_link="$(params.github_commit_link)"
+        webhook_url="$(params.webhook_url)"
+
+        json_data=$(cat <<EOF
+          {
+            "msg_type": "${message_type}",
+            "card": {
+              "config": {
+                "wide_screen_mode": ${wide_screen_mode}
+              },
+              "header": {
+                "title": {
+                  "content": "${pipeline_title}",
+                  "tag": "plain_text"
+                },
+                "template": "${message_color}"
+              },
+              "elements": [
+                {
+                  "tag": "div",
+                  "fields": [
+                    {
+                      "is_short": true,
+                      "text": {
+                        "content": "**Start Time:**\n${pipeline_start_time}",
+                        "tag": "lark_md"
+                      }
+                    },
+                    {
+                      "is_short": true,
+                      "text": {
+                        "content": "**End Time:**\n${pipeline_end_time}",
+                        "tag": "lark_md"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "tag": "hr"
+                },
+                {
+                  "tag": "div",
+                  "text": {
+                    "content": "<at id=${mention_user_open_id}></at>${pipeline_result_content}",
+                    "tag": "lark_md"
+                  }
+                },
+                {
+                  "tag": "hr"
+                },
+                {
+                  "tag": "div",
+                  "text": {
+                    "content": "**Commit Info:**\n ${commit_info}",
+                    "tag": "lark_md"
+                  }
+                },
+                {
+                  "tag": "hr"
+                },
+                {
+                  "tag": "action",
+                  "actions": [
+                    {
+                      "tag": "button",
+                      "text": {
+                        "content": "Pipeline CI Details",
+                        "tag": "plain_text"
+                      },
+                      "url": "${pipeline_result_link}",
+                      "type": "default"
+                    }
+                  ]
+                },
+                {
+                  "tag": "hr"
+                },
+                {
+                  "tag": "action",
+                  "actions": [
+                    {
+                      "tag": "button",
+                      "text": {
+                        "content": "Github Commit Details",
+                        "tag": "plain_text"
+                      },
+                      "url": "${github_commit_link}",
+                      "type": "default"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        EOF
+        )
+        curl -X POST -H "Content-Type: application/json" -d "${json_data}" "$webhook_url"
+```
+
+</details>
+
+
+### 2.5 Create Pipeline
 
 Use command `kubectl apply -f pipeline.yaml` to create pipeline: `cicd-demo-pipeline`
 
 customized `pipeline.yaml` file as below:
 
 - tasks `fetch-from-git`: params `Dockerfile` value is `$(workspaces.source.path)/Dockerfile`, modify the path if your Dockerfile is not in the root of your git repo.
-- tasks `update-image-tag`: params `project_path` value is `cicd-demo-helm`, modify the path if your helm/kustomize directory path.
+- tasks `update-image-tag`: params `project_path` value is `cicd-demo-helm`, modify the path if your `helm/kustomize` directory path.
+
+<details><summary style={{color: "red"}}>pipeline.yaml</summary>
 
 ```yaml
 apiVersion: tekton.dev/v1
@@ -442,6 +675,8 @@ spec:
     - name: repo_url
       type: string
     - name: repo_revision
+      type: string
+    - name: git_branch
       type: string
     # push image to which registry and repository
     - name: image-registry
@@ -489,6 +724,8 @@ spec:
       taskRef:
         name: update-image-tag
       params:
+        - name: git_branch
+          value: $(params.git_branch)
         - name: commit_id
           value: $(tasks.fetch-from-git.results.commit)
         # cd https://github.com/sunway910/cicd-demo/$project_path
@@ -499,15 +736,113 @@ spec:
           workspace: git-source
         - name: ssh-directory
           workspace: github-cred
+  # delete finally task if you dont need to send notification to IM
+  # finally task will not be executed if pipeline_start_time/pipeline_end_time is null
+  finally:
+    - name: send-notification-to-lark
+      taskRef:
+        name: send-notification-to-lark
+      params:
+        - name: webhook_url
+          value: "https://open.larksuite.com/open-apis/bot/v2/hook/xxxxx"
+        - name: pipeline_title
+          value: "Demo Pipeline"
+        - name: pipeline_result
+          value: $(tasks.status)
+        - name: commit_info
+          value: $(tasks.fetch-from-git.results.commit-info)
+        - name: pipeline_result_link
+          value: "https://tekton-dashboard.sunway.run/#/pipelineruns"
+        - name: github_commit_link
+          value: https://github.com/sunway910/cicd-demo/commit/$(tasks.fetch-from-git.results.commit)
+        - name: mention_user_open_id
+          value: "all"
+        - name: pipeline_start_time
+          value: $(tasks.fetch-from-git.results.pipeline-start-time)
+        - name: pipeline_end_time
+          value: $(tasks.update-image-tag.results.pipeline-end-time)
 ```
 
-### 2.5 Create TriggerTemplate
+</details>
+
+### 2.6 Schedule Pipeline (Optional)
+If you do not want pipeline affects other resources in kubernetes cluster, you can set pipeline run at a specific kubernetes node with label: `pipeline=true`:
+
+```bash
+kubectl label nodes <node-name> pipeline=true
+kubectl taint nodes <node-name> pipeline=true:NoSchedule
+kubectl get cm config-defaults -n tekton-pipelines -o yaml > /tmp/config-defaults-bk.yaml
+```
+
+All of pipelines configuration will extend from configmap `config-defaults` and then be scheduled on the node with label `pipeline=true`
+
+<details><summary style={{color: "red"}}>config-default.yaml</summary>
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: tekton-pipelines
+  name: config-defaults
+  namespace: tekton-pipelines
+data:
+  _example: |
+    # default-timeout-minutes contains the default number of
+    # minutes to use for TaskRun and PipelineRun, if none is specified.
+    default-timeout-minutes: "60"  # 60 minutes
+
+    # default-service-account contains the default service account name
+    # to use for TaskRun and PipelineRun, if none is specified.
+    default-service-account: "default"
+
+    # default-managed-by-label-value contains the default value given to the
+    # "app.kubernetes.io/managed-by" label applied to all Pods created for
+    # TaskRuns. If a user's requested TaskRun specifies another value for this
+    # label, the user's request supercedes.
+    default-managed-by-label-value: "tekton-pipelines"
+
+    # default-pod-template contains the default pod template to use for
+    # TaskRun and PipelineRun. If a pod template is specified on the
+    # PipelineRun, the default-pod-template is merged with that one.
+    default-pod-template: |
+      nodeSelector:
+        pipeline: "true"
+      tolerations:
+        - key: "pipeline"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+    # default-affinity-assistant-pod-template contains the default pod template
+    # to use for affinity assistant pods. If a pod template is specified on the
+    # PipelineRun, the default-affinity-assistant-pod-template is merged with
+    # that one.
+    default-affinity-assistant-pod-template: |
+      nodeSelector:
+        pipeline: "true"
+      tolerations:
+        - key: "pipeline"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+
+    # default-max-matrix-combinations-count contains the default maximum number
+    # of combinations from a Matrix, if none is specified.
+    default-max-matrix-combinations-count: "256"
+```
+
+</details>
+
+### 2.7 Create TriggerTemplate
 Use command `kubectl apply -f triggertemplate.yaml` to create triggertemplate: `cicd-demo-github-template`
 
 customized `triggertemplate.yaml` file as below, task `update-image-tag` will push image to `docker.io/sunway/cicd-demo:$(params.commit_id)`:
 
 - image-registry: `docker.io/sunway`
 - image-repo-name: `cicd-demo`
+
+<details><summary style={{color: "red"}}>triggerTemplate.yaml</summary>
 
 ```yaml
 apiVersion: triggers.tekton.dev/v1beta1
@@ -518,6 +853,7 @@ spec:
   params:
     - name: gitrevision
     - name: gitrepositoryurl
+    - name: gitbranch
   resourceTemplates:
     - apiVersion: tekton.dev/v1
       kind: PipelineRun
@@ -554,14 +890,21 @@ spec:
             value: $(tt.params.gitrepositoryurl)
           - name: repo_revision
             value: $(tt.params.gitrevision)
+          - name: git_branch
+            value: $(tt.params.gitbranch)
           - name: image-registry
             value: docker.io/sunway
           - name: image-repo-name
             value: cicd-demo
 ```
 
-### 2.6 Create TriggerBinding
+</details>
+
+### 2.8 Create TriggerBinding
 Use command `kubectl apply -f triggerbinding.yaml` to create triggerbinding: `github-push-binding`
+
+<details><summary style={{color: "red"}}>triggerbinding.yaml</summary>
+
 ```yaml
 apiVersion: triggers.tekton.dev/v1beta1
 kind: TriggerBinding
@@ -577,13 +920,17 @@ spec:
       value: $(body.ref)
 ```
 
-### 2.7 Create EventListener
+</details>
+
+### 2.9 Create EventListener
 Use command `kubectl apply -f eventlistener.yaml` to create eventlistener: `cicd-demo-github-listener`
 
 Trigger Condition:
 - 1: repo name is equal to `cicd-demo`
 - 2: commit message does not contain `skip ci`.
 - 3: push/pull_request on main/master branch
+
+<details><summary style={{color: "red"}}>eventlistener.yaml</summary>
 
 ```yaml
 apiVersion: triggers.tekton.dev/v1beta1
@@ -615,10 +962,392 @@ spec:
         - ref: github-push-binding
       template:
         ref: cicd-demo-github-template
-
 ```
 
+</details>
 
+
+### 2.10 Create ArgoCD Notification (Optional)
+use `kubectl apply -f ...` to update configmap: `argocd-notifications-cm`
+
+then: `kubectl rollout restart deployment argocd-notifications-controller -n argocd`
+
+<details><summary style={{color: "red"}}>argocd-notifications-cm.yaml</summary>
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-notifications-cm
+  namespace: argocd
+data:
+  service.webhook.team-a-hook: |
+    url: "https://open.larksuite.com/open-apis/bot/v2/hook/123456"
+    headers:
+      - name: Content-Type
+        value: application/json
+  service.webhook.team-b-hook: |
+    url: "https://open.larksuite.com/open-apis/bot/v2/hook/654321"
+    headers:
+      - name: Content-Type
+        value: application/json
+  context: |
+    argocdUrl: https://argocd.sunway.run
+  trigger.on-deployed: | # application is healthy after being synced
+    - description: Application is synced and healthy. Triggered once per commit.
+      send: [app-status-change]
+      when: app.status.operationState.phase in ['Succeeded'] and app.status.health.status == 'Healthy'
+  trigger.on-sync-running: | # start syncing
+    - description: Application is being synced
+      send: [app-status-change]
+      when: app.status.operationState.phase in ['Running']
+  trigger.on-sync-succeeded: | # syncing has succeeded
+    - description: Application syncing has succeeded
+      send: [app-status-change]
+      when: app.status.operationState.phase in ['Succeeded']
+  trigger.on-health-degraded: |
+    - description: Application has degraded
+      send: [app-degraded]
+      when: app.status.health.status == 'Degraded'
+  trigger.on-sync-failed: |
+    - description: Application syncing has failed
+      send: [app-degraded]
+      when: app.status.operationState.phase in ['Error', 'Failed']
+  trigger.on-sync-status-unknown: |
+    - description: Application status is 'Unknown'
+      send: [app-degraded]
+      when: app.status.sync.status == 'Unknown'
+  template.app-status-change: |
+    webhook:
+      team-a-hook:
+        method: POST
+        body: |
+          {
+            "msg_type": "interactive",
+            "card": {
+              "config": {
+                "wide_screen_mode": true
+              },
+              "header": {
+                "title": {
+                  "content": "Prod Application Status Changed",
+                  "tag": "plain_text"
+                },
+                "template": "green"
+              },
+              "elements": [
+                {
+                  "tag": "div",
+                  "text": {
+                    "content": "<at id=all></at>",
+                    "tag": "lark_md"
+                  }
+                },
+                {
+                  "tag": "div",
+                  "text": {
+                    "content": "**Application Name:** {{.app.metadata.name}}",
+                    "tag": "lark_md"
+                  }
+                },
+                {
+                  "tag": "hr"
+                },
+                {
+                  "tag": "div",
+                  "text": {
+                    "content": "**Sync Status:** {{.app.status.operationState.phase}}",
+                    "tag": "lark_md"
+                  }
+                },
+                {
+                  "tag": "hr"
+                },
+                {
+                  "tag": "div",
+                  "text": {
+                    "content": "**Application Status:** {{.app.status.health.status}}",
+                    "tag": "lark_md"
+                  }
+                },
+                {
+                  "tag": "hr"
+                },
+                {
+                  "tag": "div",
+                  "text": {
+                    "content": "**Time:** {{.app.status.operationState.startedAt}}",
+                    "tag": "lark_md"
+                  }
+                },
+                {
+                  "tag": "hr"
+                },
+                {
+                  "tag": "action",
+                  "actions": [
+                    {
+                      "tag": "button",
+                      "text": {
+                        "content": "Prod ArgoCD Deployment Details",
+                        "tag": "plain_text"
+                      },
+                      "url": "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
+                      "type": "default"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+      team-b-hook:
+        method: POST
+        body: |
+          {
+            "msg_type": "interactive",
+            "card": {
+              "config": {
+                "wide_screen_mode": true
+              },
+              "header": {
+                "title": {
+                  "content": "Prod Application Status Changed",
+                  "tag": "plain_text"
+                },
+                "template": "green"
+              },
+              "elements": [
+                {
+                  "tag": "div",
+                  "text": {
+                    "content": "<at id=all></at>",
+                    "tag": "lark_md"
+                  }
+                },
+                {
+                  "tag": "div",
+                  "text": {
+                    "content": "**Application Name:** {{.app.metadata.name}}",
+                    "tag": "lark_md"
+                  }
+                },
+                {
+                  "tag": "hr"
+                },
+                {
+                  "tag": "div",
+                  "text": {
+                    "content": "**Sync Status:** {{.app.status.operationState.phase}}",
+                    "tag": "lark_md"
+                  }
+                },
+                {
+                  "tag": "hr"
+                },
+                {
+                  "tag": "div",
+                  "text": {
+                    "content": "**Application Status:** {{.app.status.health.status}}",
+                    "tag": "lark_md"
+                  }
+                },
+                {
+                  "tag": "hr"
+                },
+                {
+                  "tag": "div",
+                  "text": {
+                    "content": "**Time:** {{.app.status.operationState.startedAt}}",
+                    "tag": "lark_md"
+                  }
+                },
+                {
+                  "tag": "hr"
+                },
+                {
+                  "tag": "action",
+                  "actions": [
+                    {
+                      "tag": "button",
+                      "text": {
+                        "content": "Prod ArgoCD Deployment Details",
+                        "tag": "plain_text"
+                      },
+                      "url": "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
+                      "type": "default"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+  template.app-degraded: |
+    webhook:
+      team-a-hook:
+        method: POST
+        body: |
+          {
+            "msg_type": "interactive",
+            "card": {
+              "config": {
+                "wide_screen_mode": true
+              },
+              "header": {
+                "title": {
+                  "content": "Alert Prod Application Degraded",
+                  "tag": "plain_text"
+                },
+                "template": "red"
+              },
+              "elements": [
+                {
+                  "tag": "div",
+                  "text": {
+                    "content": "<at id=all></at>",
+                    "tag": "lark_md"
+                  }
+                },
+                {
+                  "tag": "div",
+                  "text": {
+                    "content": "**Application Name:** {{.app.metadata.name}}",
+                    "tag": "lark_md"
+                  }
+                },
+                {
+                  "tag": "hr"
+                },
+                {
+                  "tag": "div",
+                  "text": {
+                    "content": "**Sync Status:** {{.app.status.operationState.phase}}",
+                    "tag": "lark_md"
+                  }
+                },
+                {
+                  "tag": "hr"
+                },
+                {
+                  "tag": "div",
+                  "text": {
+                    "content": "**Application Status:** {{.app.status.health.status}}",
+                    "tag": "lark_md"
+                  }
+                },
+                {
+                  "tag": "hr"
+                },
+                {
+                  "tag": "div",
+                  "text": {
+                    "content": "**Time:** {{.app.status.operationState.startedAt}}",
+                    "tag": "lark_md"
+                  }
+                },
+                {
+                  "tag": "hr"
+                },
+                {
+                  "tag": "action",
+                  "actions": [
+                    {
+                      "tag": "button",
+                      "text": {
+                        "content": "Prod ArgoCD Deployment Details",
+                        "tag": "plain_text"
+                      },
+                      "url": "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
+                      "type": "default"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+      team-b-hook:
+        method: POST
+        body: |
+          {
+            "msg_type": "interactive",
+            "card": {
+              "config": {
+                "wide_screen_mode": true
+              },
+              "header": {
+                "title": {
+                  "content": "Alert Prod Application Degraded",
+                  "tag": "plain_text"
+                },
+                "template": "red"
+              },
+              "elements": [
+                {
+                  "tag": "div",
+                  "text": {
+                    "content": "<at id=all></at>",
+                    "tag": "lark_md"
+                  }
+                },
+                {
+                  "tag": "div",
+                  "text": {
+                    "content": "**Application Name:** {{.app.metadata.name}}",
+                    "tag": "lark_md"
+                  }
+                },
+                {
+                  "tag": "hr"
+                },
+                {
+                  "tag": "div",
+                  "text": {
+                    "content": "**Sync Status:** {{.app.status.operationState.phase}}",
+                    "tag": "lark_md"
+                  }
+                },
+                {
+                  "tag": "hr"
+                },
+                {
+                  "tag": "div",
+                  "text": {
+                    "content": "**Application Status:** {{.app.status.health.status}}",
+                    "tag": "lark_md"
+                  }
+                },
+                {
+                  "tag": "hr"
+                },
+                {
+                  "tag": "div",
+                  "text": {
+                    "content": "**Time:** {{.app.status.operationState.startedAt}}",
+                    "tag": "lark_md"
+                  }
+                },
+                {
+                  "tag": "hr"
+                },
+                {
+                  "tag": "action",
+                  "actions": [
+                    {
+                      "tag": "button",
+                      "text": {
+                        "content": "Prod ArgoCD Deployment Details",
+                        "tag": "plain_text"
+                      },
+                      "url": "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
+                      "type": "default"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+```
+
+</details>
 
 ## 3 Create Ingress
 
@@ -648,7 +1377,7 @@ spec:
 
 ### 3.2 Create Tekton Dashboard Ingress
 
-Access to `https://tekton-dashboard.sunway.run` and watch the tasks progress in pipelineRun after push/pull_request to GitHub repo...
+Access to `https://tekton-dashboard.sunway.run` and watch the tasks progress in pipelineRun after `push/pull_request` to GitHub repo...
 
 ```yaml
 apiVersion: networking.k8s.io/v1
@@ -732,7 +1461,7 @@ This command will create a `service account Argo CD-manager` on the cluster you 
 
 
 
-### 4.2 Create A Repositories
+### 4.2 Create A Git Repository
 
 connect to a private repo via ssh as below
 

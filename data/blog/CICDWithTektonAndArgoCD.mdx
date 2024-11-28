@@ -109,7 +109,11 @@ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.pas
 ### 2.0 Create ServiceAccount
 
 `sunway123` is the `secret` should be set in your `GitHub Repo Webhook`
-<details><summary style={{color: "red"}}>sa.yaml</summary>
+
+<details>
+    <summary style={{color: "red"}}>
+        sa.yaml
+    </summary>
 
 ```yaml
 apiVersion: v1
@@ -223,7 +227,10 @@ subjects:
 ### 2.1 Task: Git Clone
 Use command `kubectl apply -f task-git-clone.yaml` to add task: `git-clone`, you can also use command `tkn hub install task git-clone` to get task from hub and then customize the yaml file `kubectl get task git-clone -o yaml > task-git-clone.yaml` by yourself.
 
-<details><summary style={{color: "red"}}>task-git-clone.yaml</summary>
+<details>
+    <summary style={{color: "red"}}>
+        task-git-clone.yaml
+    </summary>
 
 ```yaml
 apiVersion: tekton.dev/v1
@@ -331,7 +338,10 @@ spec:
 ### 2.2 Task: Docker Build And Push
 Use command `kubectl apply -f task-kaniko.yaml` to add task: `kaniko-build-and-push`, you can also use command `tkn hub install task kaniko` to get task from hub and then customize the yaml file `kubectl get task kaniko -o yaml > task-kaniko.yaml` by yourself.
 
-<details><summary style={{color: "red"}}>task-kaniko.yaml</summary>
+<details>
+    <summary style={{color: "red"}}>
+        task-kaniko.yaml
+    </summary>
 
 ```yaml
 apiVersion: tekton.dev/v1beta1
@@ -395,7 +405,10 @@ spec:
 ### 2.3 Task: Update Image Tag In Helm Chart
 Use command `kubectl apply -f task-update-image-tag.yaml` to add task: `task-update-image-tag`
 
-<details><summary style={{color: "red"}}>task-update-image-tag.yaml</summary>
+<details>
+    <summary style={{color: "red"}}>
+        task-update-image-tag.yaml
+    </summary>
 
 ```yaml
 apiVersion: tekton.dev/v1beta1
@@ -469,7 +482,10 @@ Please kindly check your `IM Tool Docs` to get the `Webhook URL` and `Request Bo
 
 Otherwise, you can just skip this task and delete it in your pipeline finally task.
 
-<details><summary style={{color: "red"}}>send-notification.yaml</summary>
+<details>
+    <summary style={{color: "red"}}>
+        send-notification.yaml
+    </summary>
 
 ```yaml
 apiVersion: tekton.dev/v1beta1
@@ -662,7 +678,10 @@ customized `pipeline.yaml` file as below:
 - tasks `fetch-from-git`: params `Dockerfile` value is `$(workspaces.source.path)/Dockerfile`, modify the path if your Dockerfile is not in the root of your git repo.
 - tasks `update-image-tag`: params `project_path` value is `cicd-demo-helm`, modify the path if your `helm/kustomize` directory path.
 
-<details><summary style={{color: "red"}}>pipeline.yaml</summary>
+<details>
+    <summary style={{color: "red"}}>
+        pipeline.yaml
+    </summary>
 
 ```yaml
 apiVersion: tekton.dev/v1
@@ -776,7 +795,10 @@ kubectl get cm config-defaults -n tekton-pipelines -o yaml > /tmp/config-default
 
 All of pipelines configuration will extend from configmap `config-defaults` and then be scheduled on the node with label `pipeline=true`
 
-<details><summary style={{color: "red"}}>config-default.yaml</summary>
+<details>
+    <summary style={{color: "red"}}>
+        config-default.yaml
+    </summary>
 
 ```yaml
 apiVersion: v1
@@ -842,7 +864,10 @@ customized `triggertemplate.yaml` file as below, task `update-image-tag` will pu
 - image-registry: `docker.io/sunway`
 - image-repo-name: `cicd-demo`
 
-<details><summary style={{color: "red"}}>triggerTemplate.yaml</summary>
+<details>
+    <summary style={{color: "red"}}>
+        triggerTemplate.yaml
+    </summary>
 
 ```yaml
 apiVersion: triggers.tekton.dev/v1beta1
@@ -903,7 +928,10 @@ spec:
 ### 2.8 Create TriggerBinding
 Use command `kubectl apply -f triggerbinding.yaml` to create triggerbinding: `github-push-binding`
 
-<details><summary style={{color: "red"}}>triggerbinding.yaml</summary>
+<details>
+    <summary style={{color: "red"}}>
+        triggerbinding.yaml
+    </summary>
 
 ```yaml
 apiVersion: triggers.tekton.dev/v1beta1
@@ -930,7 +958,10 @@ Trigger Condition:
 - 2: commit message does not contain `skip ci`.
 - 3: push/pull_request on main/master branch
 
-<details><summary style={{color: "red"}}>eventlistener.yaml</summary>
+<details>
+    <summary style={{color: "red"}}>
+        eventlistener.yaml
+    </summary>
 
 ```yaml
 apiVersion: triggers.tekton.dev/v1beta1
@@ -972,7 +1003,10 @@ use `kubectl apply -f ...` to update configmap: `argocd-notifications-cm`
 
 then: `kubectl rollout restart deployment argocd-notifications-controller -n argocd`
 
-<details><summary style={{color: "red"}}>argocd-notifications-cm.yaml</summary>
+<details>
+    <summary style={{color: "red"}}>
+        argocd-notifications-cm.yaml
+    </summary>
 
 ```yaml
 apiVersion: v1

@@ -281,3 +281,8 @@ spec:
 **4 多云和混合云支持**: `Cloudflare` 的负载均衡服务可以跨多个云部署进行智能流量分配，包括私有云、公有云和混合云环境，而不局限于单一云提供商的生态系统。
 
 **5 成本效益**: 由于 `Cloudflare` 的服务是作为统一平台的一部分提供的，一般会比单独购买和管理多个公有云提供商的 `GTM` 服务更具成本效益。
+
+
+## 2024 December update
+
+已老实，架构既然无法发挥 k8s 弹性扩展的作用，还有 `nginx ingress reload` 这种恶心的问题，已放弃当前架构，改为了： `CfLoadBalancing + (keepAlived + nginx) + systemd + blackbox exporter + prometheus + grafana + alertmanager`

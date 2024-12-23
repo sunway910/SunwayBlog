@@ -235,11 +235,11 @@ spec:
 
 <span style={{color: 'red'}}>Scenario: A</span>
 
-当用户在浏览器端调用 RPC 方法创建一个 token 后，用户马上使用这个 token 去链上发起请求时可能出现 `token invalid or token no exist` 的问题，因为第2次请求可能路由到了不同的 rpc 实例，而由于区块没有同步，这个 token 还没有被区块打包同步到其他 rpc 实例，所以返回了 token invalid or no exist。这里可用通过 CF LoadBalancing Policy：Proximity steering 和 Kubernetes service sessionAffinity 解决。
+当用户在浏览器端调用 RPC 方法创建一个 token 后，用户马上使用这个 token 去链上发起请求时可能出现 `token invalid or token no exist` 的问题，因为第2次请求可能路由到了不同的 rpc 实例，而由于区块没有同步，这个 token 还没有被区块打包同步到其他 rpc 实例，所以返回了 `token invalid or no exist`。这里可用通过 `CF LoadBalancing Policy：Proximity steering` 和 `Kubernetes service sessionAffinity` 解决。
 
 <span style={{color: 'red'}}>Scenario: B</span>
 
-当用户在浏览器端调用 RPC 方法创建一个 token 后，用户立刻使用这个 token 去向 DeApp server 发起请求，DeApp Server 去 verify token 的合法性时仍然可能出现 `token invalid or token no exist` 的问题，因为无法保证 DeApp Server 和用户浏览器请求的不是相同的k8s集群中的同一个rpc pod，所以还是可能会出现请求失败的问题，甚至 DeApp Server 根本没有请求官方的 RPC，而是自己搭建了 RPC 供自己 DeApp 调用
+当用户在浏览器端调用 RPC 方法创建一个 token 后，然后立刻使用这个 token 去向 `DeApp server` 发起请求，DeApp Server 去 verify token 的合法性时仍然可能出现 `token invalid or token no exist` 的问题，因为无法保证 DeApp Server 和用户浏览器请求的不是相同的k8s集群中的同一个rpc pod（实际上我们自己开发的Deapp使用的是内网的rpc，只允许集群内服务访问，公网的rpc只是备份节点），所以还是可能会出现请求失败的问题，甚至 DeApp Server 根本没有请求官方的 RPC，而是自己搭建了 RPC 供自己 DeApp 调用
 
 **当然还有其他的异常情况，比如可能是链本身交易失败的问题，但大部分还是因为区块未同步导致的 rpc 节点之间的数据不对称。最终的解决方案还是取决于链的出块时间，比如出块时间 6s，应用层再根据这个出块时间来做相应的调整**
 
@@ -247,9 +247,9 @@ spec:
 
 由于业务的特殊性，`HPA/AutoScale` 等功能在当前场景中可能无法很好地发挥作用。（这点可能和 k8s 弹性伸缩的特性相违背）
 
-比如将 `rpc pod replicas` 从 2 扩容到 4， 实际上新的 rpc 实例是无法提供正常服务的，它是有状态的，无论是使用 csi/nfs 等storageClass 还是 hostPath 等等；因为新的 `rpc` 实例需要从 0 开始同步区块数据。
+比如将 `rpc pod replicas` 从 2 扩容到 4， 实际上新的 rpc 实例是无法提供正常服务的，它是有状态的，无论存储是使用 `csi/nfs storageClass` 还是 `hostPath` 等等；因为新的 `rpc` 实例需要从 0 开始同步区块数据。
 
-当链运行的越久，区块数量越多，需要同步的时间就越多，一般新的全节点实例需要至少等待 2~3 小时才能完成区块同步（时间链的运行时长成正比），之后才能正常提供服务。
+当链运行的越久，区块数量越多，需要同步的时间就越多，一般新的全节点实例需要至少等待 2~3 小时才能完成区块同步**（同步时间与链的运行时长成正比）**，之后才能正常提供服务。
 
 所以，当节点需要扩容时，只能在 `Cloudflare Load Balancing` 上添加或者替换新的 `endpoint`，而不能直接扩容 k8s 集群中的 pod。
 
@@ -283,6 +283,6 @@ spec:
 **5 成本效益**: 由于 `Cloudflare` 的服务是作为统一平台的一部分提供的，一般会比单独购买和管理多个公有云提供商的 `GTM` 服务更具成本效益。
 
 
-## 2024 December update
+## 2024 December Latest Update
 
-已老实，架构既然无法发挥 k8s 弹性扩展的作用，还有 `nginx ingress reload` 这种恶心的问题，已放弃当前架构，改为了： `CfLoadBalancing + (keepAlived + nginx) + systemd + blackbox exporter + prometheus + grafana + alertmanager`
+<span style={{ color: 'blue' }}> 已老实，架构既然无法发挥 k8s 弹性扩展的作用，还有 `nginx ingress reload` 这种恶心的问题，已放弃当前架构，改为了： `CfLoadBalancing + (keepAlived + nginx) + systemd + logrotate + blackbox exporter + prometheus + grafana + alertManager` </span>

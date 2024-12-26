@@ -286,7 +286,7 @@ spec:
         #!/usr/bin/env sh
         set -eu
         export TZ=UTC-8
-        TZ='Asia/Shanghai' echo -n "$(date '+Date: %Y-%m-%d Time: %H:%M:%S')" > $(results.pipeline-start-time.path)
+        TZ='Asia/Hong_Kong' echo -n "$(date '+Date: %Y-%m-%d Time: %H:%M:%S')" > $(results.pipeline-start-time.path)
         if [[ -d $(workspaces.ssh-directory.path) ]]; then
           mkdir -p ~/.ssh
           cp $(workspaces.ssh-directory.path)/known_hosts ~/.ssh/known_hosts
@@ -397,7 +397,7 @@ spec:
         export TZ=UTC-8
         image="$(params.IMAGE)"
         echo -n "${image}" | tee "$(results.IMAGE_URL.path)"
-        TZ='Asia/Shanghai' echo -n "$(date '+Date: %Y-%m-%d Time: %H:%M:%S')" > $(results.image-build-end-time.path)
+        TZ='Asia/Hong_Kong' echo -n "$(date '+Date: %Y-%m-%d Time: %H:%M:%S')" > $(results.image-build-end-time.path)
 ```
 
 </details>
@@ -459,6 +459,7 @@ spec:
           # cd https://github.com/sunway910/cicd-demo/cicd-demo-helm
           cd "$(project_path)"
           # update image tag to the latest one
+          # attention: please make sure only one `tag` in values.yaml, otherwise, `sed` will update all of them
           sed -i "s|tag:.*|tag: $(params.commit_id)|" values.yaml || { echo "Failed to update values.yaml"; exit 1; }
 
 
@@ -468,7 +469,7 @@ spec:
           echo "Commit changes: skip ci: update image tag to $(params.commit_id)"
           git commit -m "skip ci: update image tag to $(params.commit_id)" || { echo "Failed to commit changes"; exit 1; }
           git push || { echo "Failed to push changes"; exit 1; }
-          TZ='Asia/Shanghai' echo -n "$(date '+Date: %Y-%m-%d Time: %H:%M:%S')" > $(results.pipeline-end-time.path)
+          TZ='Asia/Hong_Kong' echo -n "$(date '+Date: %Y-%m-%d Time: %H:%M:%S')" > $(results.pipeline-end-time.path)
         EOF
       securityContext:
         runAsUser: 0
@@ -789,7 +790,6 @@ If you do not want pipeline affects other resources in kubernetes cluster, you c
 
 ```bash
 kubectl label nodes <node-name> pipeline=true
-kubectl taint nodes <node-name> pipeline=true:NoSchedule
 kubectl get cm config-defaults -n tekton-pipelines -o yaml > /tmp/config-defaults-bk.yaml
 ```
 
@@ -1371,6 +1371,8 @@ data:
 
 </details>
 
+![ArgoNotificationSubscription](/static/images/ArgoNotificationSubscription.png)
+
 ## 3 Create Ingress
 
 ### 3.1 Create EventListener Ingress
@@ -1421,6 +1423,8 @@ spec:
                 port:
                   number: 9097
 ```
+
+[Optional: How to protect your tekton-dashboard in public network?](https://www.sunway.run/blog/HowToUseOauthProxy)
 
 ### 3.2 Create ArgoCD Dashboard Ingress
 
@@ -1537,7 +1541,7 @@ After you check application is healthy, you can **push code to your GitHub repo*
 
 ArgoCD will auto sync the `image tag` changes in `values.yaml` when pipelineRun done.
 
-[Argocd will sync every `180 seconds` automatically](https://argo-cd.readthedocs.io/en/release-2.5/faq/#:~:text=The%20default%20polling%20interval%20is,the%20auto%2Dsync%20setting%20enabled.), but you can also `click sync` manually to sync immediately.
+[Argocd will check changes every `180 seconds`](https://argo-cd.readthedocs.io/en/release-2.5/faq/#:~:text=The%20default%20polling%20interval%20is,the%20auto%2Dsync%20setting%20enabled.), but you can also `click sync` manually to sync immediately.
 
 
 

@@ -1,0 +1,98 @@
+---
+title: How to build a network with FortiGate in the cloud
+date: '2023-06-08'
+tags: ['Tech','Fortigate','Network']
+draft: false
+images: []
+summary: 阿里云国际站使用 Fortigate 组网
+---
+
+<TOCInline toc={props.toc} indentDepth={3} fromHeading={2} toHeading={6}/>
+
+## 1.配置 VPC 专有网络
+
+![CreateAliVPC](/static/images/BuildNetworkWithFortiInCloud/CreateAliVPC.png)
+![AliNetTopology](/static/images/BuildNetworkWithFortiInCloud/AliNetTopology.png)
+
+如上所示：创建 `VPC` 时需要创建至少 `1` 个交换机来划分 `VPC` 下的子网
+
+交换机功能是用来划分 `VPC` 下不同的子网，为云服务实例提供网络连接，同一 `VPC` 下的不同交换机之间内网互通。（可以为服务绑定不同可用区的交换机，提升服务的可用性）
+
+
+**`10.0.1.0/24` 子网下最多可以绑定 `2^8 - 4 = 252` 个云服务实例。减 `4` 而不是减 `2` 的原因是因为阿里云需要 `.253 .254` ip作为网关**
+![ReduceIPCountReason](/static/images/BuildNetworkWithFortiInCloud/ReduceIPCountReason.png)
+
+<span style={{ color: 'red' }}> 一般情况下： 为了保证扩展性，满足云上云下互联，云上多 VPC 互联等需求，企业需要提前做好网段的使用规划，尽量避免 IP 资源浪费和冲突</span><br></br>
+
+## 2.内网 ECS 实例访问外网
+
+### 2.1 配置辅助网卡
+
+**创建 1 台具备公网 IP 的 ECS 示例作为 VPC 门户，下面以 Fortigate 防火墙为例**
+
+![CreateFortiECS](/static/images/BuildNetworkWithFortiInCloud/CreateFortiECS.png)
+
+- 创建 `Fortigate ECS` 时可以使用云市场镜像的 `BYOL Edition(Bring Your Own License)` / `License Included Edition` / `CustomImage`
+
+
+**然后创建 `EIP` 辅助网卡作为内网流量出入口, 如当前 VPC 下有  2 个 ECS 实例，1 个业务服务器，1 个 `Fortigate` 实例**
+
+![CreateEIP1](/static/images/BuildNetworkWithFortiInCloud/CreateEIP1.png)
+
+
+**辅助网卡和业务服务器位于同一网段: `10.1.20.xxx` (交换机网段:`10.1.20.0/24`)， 一般选择`10.1.20.252`，辅助网卡的`安全组`和业务服务器共用**
+
+![CreateEIP2](/static/images/BuildNetworkWithFortiInCloud/CreateEIP2.png)
+
+
+### 2.2 配置 Fortigate Interface
+
+
+**配置Interface**
+
+- `Interface port1(WAN)` 默认绑定 `Forigate` 实例的私网主网卡: `10.1.21.252/255.255.255.0`
+- `Interface port2(LAN)` 默认绑定 `Forigate` 实例的私网辅助网卡:  `10.1.20.252/255.255.255.0`
+
+![ConfigInterface1](/static/images/BuildNetworkWithFortiInCloud/ConfigInterface1.png)
+
+![ConfigInterface2](/static/images/BuildNetworkWithFortiInCloud/ConfigInterface2.png)
+
+
+### 2.3 配置 Fortigate Static Routes
+
+![ConfigStaticRoute](/static/images/BuildNetworkWithFortiInCloud/ConfigStaticRoute.png)
+
+- `port1` 通过网关 `10.1.21.253` 访问互联网 `0.0.0.0/0`
+- `port2` 通过网关 `10.1.20.253` 访问内网 `10.0.0.0/8`
+
+
+
+### 2.4 配置 Fortigate Firewall policy
+
+**Fortigate Firewall Policy策略如下：**
+
+![ConfigFirewallPolicy1](/static/images/BuildNetworkWithFortiInCloud/ConfigFirewallPolicy1.png)
+
+**阿里云路由表条目配置如下，该`VPC`下的交换机的下一跳为刚刚创建的辅助网卡，对上 `Fortigate` 上的 `port2(LAN)`**
+
+![ConfigFirewallPolicy2](/static/images/BuildNetworkWithFortiInCloud/ConfigFirewallPolicy2.png)
+
+- 流量从`VPC`内网的交换机通过路由表跳转到辅助网卡，辅助网卡对应 `Fortigate port2`
+- 因为`port2`连接了内网`10.0.0.0/8`, 然后流量可以从 `port2 → port1`，至此内网的机器可以通过 `Fortigate` 访问外网
+
+
+
+## 3.外网访问专有网络内的实例
+### 3.1 配置 Fortigate Virtual IPs
+
+![ConfigVirtualIPs](/static/images/BuildNetworkWithFortiInCloud/ConfigVirtualIPs.png)
+
+**如上所示，配置`Virtual IPs`规则, 当流量通过 `Fortigate` 公网`ip:port`进来后， 映射(Mapper To)到内网的 `ip:port`**
+
+### 3.2 配置 Fortigate Firewall Policy
+
+![ConfigVirtualIPsRule](/static/images/BuildNetworkWithFortiInCloud/ConfigVirtualIPsRule.png)
+**至此外部流量可以通过 `port1→port2` 路径访问内网**
+
+
+补充：`安全组`是云平台提供的，在 `ECS` 外层，`tcpdump` 无法抓取被安全组过滤的流量，当通过 `Port1->Port2` 访问内网时，需要确保 `ECS` 所绑定的`安全组策略`配置正确

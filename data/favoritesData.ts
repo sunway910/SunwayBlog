@@ -41,7 +41,7 @@ const favoritesData = [
             },
             {
                 title: 'manjusaka 的博客',
-                description: `SRE大佬的博客`,
+                description: `manjusaka 的博客`,
                 href: 'https://www.manjusaka.blog',
                 visit: 'Visit Manjusaka Blog'
             },

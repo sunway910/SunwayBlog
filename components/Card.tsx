@@ -8,8 +8,8 @@ const Card = ({title, linkList, imgSrc, extensions}) => (
                 <h2 className="mb-3 text-2xl font-bold leading-8 tracking-tight">
                     {title}
                 </h2>
-                {linkList.map((item, _) => (
-                    <div>
+                {linkList.map((item, index) => (
+                    <div key={item.href || index}>
                         <a href={item.href}
                            target="_blank"
                            className="prose mb-3 max-w-none text-blue-500 dark:text-gray-400">{item.description}</a>

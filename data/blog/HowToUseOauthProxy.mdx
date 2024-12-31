@@ -43,12 +43,12 @@ This is a demo to show you how to use OAuth Proxy as a `reverse proxy` to protec
 
 - provider: `github`, refer to https://oauth2-proxy.github.io/oauth2-proxy/configuration/providers/github
 - upstream: `http://<Tekton Dashboard Service Name in Kubernetes>:9097`
-- redirect-url: `https://<Your_Tekton_Dashboard_Url>/oauth2/callback`
+- redirect-url: `https://<Your_Tekton_Dashboard_Url>/oauth2/callback` such as `https://tekton-dashboard.sunway.run/oauth2/callback`
 - cookie-secret: generate by `python -c 'import os,base64; print(base64.urlsafe_b64encode(os.urandom(32)).decode())'`
 - email-domain: `*` allows any email domain to login
-- github-org: `My_Github_Org_Name`, please ask `github-org admin user` to grant your `Oauth Apps` to read your org membership when you first login with http error code 5xx (Optional)
-- github-team: `My_Github_Org_Name/Team_Name` (Optional)
-... etc.
+- github-org: `My_Github_Org_Name`, please ask `github-org admin user` to grant your `Oauth Apps` to read your org membership when you first login with `http error code 5xx`
+- github-team: `My_Github_Org_Name/Team_Name`
+- ... etc.
 
 **Please check your ingress type**
 

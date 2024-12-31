@@ -1419,6 +1419,7 @@ spec:
             pathType: Prefix
             backend:
               service:
+                # change service backend and port to oauth-proxy if you want to protect your dashboard
                 name: tekton-dashboard
                 port:
                   number: 9097

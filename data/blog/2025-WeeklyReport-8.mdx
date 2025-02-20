@@ -1,0 +1,72 @@
+---
+title: 2025 Weekly Report 8
+date: '2025-02-23'
+tags: ['Weekly Report']
+draft: true
+images: []
+summary: 2025第8周周报
+---
+
+<TOCInline toc={props.toc}/>
+
+## 工作
+
+- 1 便宜有便宜的道理
+
+在`Contabo`上跑了一些吃带宽且稳定性要求不高的服务，或者一些开发环境，这是我搭建的一个K8S开发环境
+
+如下图所示，`10Core`的服务器 `system load 40+`，`steal time 76`，这简直超卖到天上去了；而且特么新加坡`VPS`到大陆的路由没有`BGP`还绕美，不开`tun`连接`ssh`简直折磨
+![oversell](/static/images/2025-w8/contabo-oversell.jpg)
+
+联系 `support` 也很麻烦，不过好在态度不错，没有和我拉扯
+
+![support](/static/images/2025-w8/contabo-support.png)
+
+------------
+
+- 2 mysql 数据库崩了
+
+一大早收到告警， 一个远古的 `mysql` 服务的连接数被打满了
+![mysql-grafana](/static/images/2025-w8/mysql-grafana.png)
+
+上服务器 `show processlist` 一看，全是 `sleep process`，改了一下业务代码的 `gorm` 连接池配置，顺便改了数据库配置的 `wait_timeout` 解决
+
+------------
+
+- 3 矿工内存溢出
+
+把机房里一台`256G`服务器内的`36`个矿工从 `chain A`迁移到 `chain B`，结果内存炸了，纳闷，上服务器一看，一个矿工随便都可以吃到 `25G` 了
+
+然后`pprof`排查发现恢复闲置文件的`func`占用巨大内存，代码里写的是每个矿工启用 `runtime.NumCPU()` 个 `goroutine`去调用恢复闲置文件的方法，宿主机 `80Cores`，`36`个矿工一共 `80*36` 个协程，直接把`RAM`打爆了...
+
+![miner-pprof](/static/images/2025-w8/miner-pprof.jpg)
+
+------------
+
+- 4 吐槽腾讯云
+
+**辣鸡腾讯云，之前买的2个`4C16G`的预留实例，居然不能抵扣1个`8C32G`的实例，非得要我拆开来？ 提个工单，售后跟个人机一样，便宜真的有便宜的道理，离 `AlibabaCloud/AWS/GCP` 的用户体验差了十万八千里。现在想起当初在`GCP`上买错`CUD`后提工单被售后人员后台手动取消的好了**
+
+
+
+
+
+
+## 生活
+
+
+
+## 学习
+
+- null
+
+
+
+
+
+
+
+
+
+
+

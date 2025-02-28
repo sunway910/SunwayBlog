@@ -1,0 +1,79 @@
+---
+title: 2025 Weekly Report 9
+date: '2025-03-02'
+tags: ['Weekly Report']
+draft: true
+images: []
+summary: 2025第9周周报
+---
+
+<TOCInline toc={props.toc}/>
+
+## 工作
+
+- 1 sql index enhancement
+
+死去的 mysql 八股攻击了我
+
+收到线上 slow sql 告警，上服务器查看一下，发现了一个 `filesort`，弄了个联合索引把它优化了；回表就先不管了，等告警再说
+
+```sql
+# 虽然 signer 和 block_id 都有单独的普通索引，但因为不是联合索引所以 order by 直接导致 filesort 了
+
+explain SELECT * FROM extrinsic_4 WHERE signer = 'cXjL7Toav4ZCnW3TJEEryKpXasFAiq5VNCUiEkoLed5jPCtGP9' ORDER BY block_id desc LIMIT 40 OFFSET 0;
+```
+
+![mysql-scanSqlEnhancement](/static/images/2025-w9/scanSqlEnhancement.jpg)
+
+**解决方案：**
+
+云上快照备份，`cloudflare loadbalance` 后端有节点A和B，删除需要变更的节点B，确认A没有流量后，在 `shardingsphere` 生产环境执行该`sql`, 4千万行数据大概5分钟能执行完成；
+
+然后在 `cloudflare` 把B节点切回来，删除A节点，再到A节点执行该添加索引sql；最后`cicd`更新代码把服务端`gorm`的索引加上，由于已经手动添加了索引，所以这次变更不会导致线上更新索引导致数据库hang住；
+
+```sql
+```sql
+ALTER TABLE `extrinsic` ADD INDEX `idx_signer_block_id` (`signer`, `block_id` DESC);
+```
+
+得想办法把数据库的技术栈迁移到 `postgres` 上...
+
+------------
+
+- 2 pvc do not int the same zone
+
+有一种需求，在云上使用默认的CSI存储插件时，当一个 pod 需要挂载多个云硬盘类型的 PVC 有可能这几个 PVC 被创建在不同的 zone，这将导致 pod 无法调度
+
+之前运气好，没注意这个，PVC 刚好创建在同一个 Zone 给我混过去了...
+
+------------
+
+- 3 bad file descriptor
+
+在容器环境中，如果想要日志持久化，可以用 volume 持久化然后 sidecar 容器抓取或者 daemonset 容器抓取，或者干脆存储在 hostPath /app/domain_name/logs/... 之类的
+
+有一种情况，当 deployment rollout restart 时，如果旧的Pod还占用了 pvc 文件系统中某个特定的 log  文件的写锁，则新的pod可能由于无法获取该文件写权限导致无法启动
+
+直接用 `time.Now().Unix()` 加在日志文件名的后缀中解决
+
+
+
+
+
+## 生活
+
+
+## 学习
+
+- null
+
+
+
+
+
+
+
+
+
+
+

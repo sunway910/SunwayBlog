@@ -12,10 +12,10 @@ const siteMetadata = {
   socialBanner: '/static/images/twitter-card.png',
   email: 'shengweizhong910@gmail.com',
   github: 'https://github.com/sunway910',
-  twitter: 'https://twitter.com/Twitter',
+  twitter: 'https://x.com/sunwayz911',
   facebook: 'https://facebook.com',
   youtube: 'https://youtube.com',
-  linkedin: 'https://www.linkedin.com',
+  linkedin: 'https://www.linkedin.com/in/sunway-zhong-47b94b257/',
   locale: 'en-US',
   // set to true if you want a navbar fixed to the top
   stickyNav: false,

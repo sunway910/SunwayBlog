@@ -1,0 +1,67 @@
+---
+title: 2025 Weekly Report 10
+date: '2025-03-09'
+tags: ['Weekly Report']
+draft: true
+images: []
+summary: 2025第10周周报
+---
+
+<TOCInline toc={props.toc}/>
+
+## 工作
+
+- 1 前端 axios 请求超时问题
+
+一个前端上传文件的接口总是失败，服务器上抓包发现客户端主动向服务器的 nginx:443 发送 reset 包断开连接
+
+检查前端代码发现 axios timeout 配置为: 30000ms，把 axios timeout 改为 6分钟后解决（比 nginx 的 client_max_body_size 大）
+
+![axiostimeout](/static/images/2025-w10/axiostimeout.png)
+
+
+------------
+
+- 2 golang threadpool overload
+
+用 `ants.NewPool` 没有设置好合适的 `pool size`，导致协程池过载，偏偏 `worker` 配置的还是： `WithNonblocking`，导致部分任务直接被丢弃了
+
+```gotemplate
+// WithNonblocking indicates that pool will return nil when there is no available workers.
+func WithNonblocking(nonblocking bool) Option {
+	return func(opts *Options) {
+		opts.Nonblocking = nonblocking
+	}
+}
+```
+
+------------
+
+
+
+
+
+
+## 生活
+
+- **1** 健身周报：
+- **2** 做菜周报：
+- **3**
+- **4** 持有 `#APLD`, `#NVDA` 财报跌超8个点，相关上下游/概念股直接亏麻
+- **5**
+- **6**
+
+## 其他
+
+
+
+
+
+
+
+
+
+
+
+
+

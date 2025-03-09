@@ -2,7 +2,7 @@
 title: 2025 Weekly Report 10
 date: '2025-03-09'
 tags: ['Weekly Report']
-draft: true
+draft: false
 images: []
 summary: 2025第10周周报
 ---
@@ -13,9 +13,9 @@ summary: 2025第10周周报
 
 - 1 前端 axios 请求超时问题
 
-一个前端上传文件的接口总是失败，服务器上抓包发现客户端主动向服务器的 nginx:443 发送 reset 包断开连接
+一个前端上传文件的接口总是失败，服务器上抓包发现客户端主动向服务器的 `nginx:443` 发送 `reset`
 
-检查前端代码发现 axios timeout 配置为: 30000ms，把 axios timeout 改为 6分钟后解决（比 nginx 的 client_max_body_size 大）
+检查前端代码发现 `axios timeout` 配置为: `30000ms`，把 `axios timeout` 改为 6 分钟后解决（比 `nginx` 的 `client_max_body_size` 大）
 
 ![axiostimeout](/static/images/2025-w10/axiostimeout.png)
 
@@ -44,16 +44,16 @@ func WithNonblocking(nonblocking bool) Option {
 
 ## 生活
 
-- **1** 健身周报：
-- **2** 做菜周报：
-- **3**
-- **4** 持有 `#APLD`, `#NVDA` 财报跌超8个点，相关上下游/概念股直接亏麻
-- **5**
-- **6**
+- **1** 健身周报：一周4练，过完年臂围只有34cm了，比年前还少了1cm，有点离谱
+- **2** 做菜周报：38妇女节出去吃了，周末做了`红烧排骨`非常好吃，`蒜末红烧茄子`也很香
+- **3** 长沙又是一周阴雨天气，又冷又潮，周末想出去露营都不行
+- **4** 持有 `#APLD` 和 `#NVDA`，已经亏得神志不清
+- **5** `骑士加油` 加的92汽油便宜，只要 6.6/L，但是百公里油耗 4.6L；平时加的 7RMB+/L，但百公里油耗基本 4L 左右，我现在严重怀疑便宜没好货，汽油里面掺了垃圾
+- **6** 续费山姆会员有 50 rmb 的折扣，今天看了小票才发现
 
 ## 其他
 
-
+周五晚看`张晋涛Moelove`直播跨版本升级`k8s集群 1.24 -> 1.31`，一条 `sed` 命令改了 `/etc/kubernetes/manifests/*.yaml` 文件中的镜像版本就直接升级成功了，有点6
 
 
 

@@ -1,0 +1,73 @@
+---
+title: 2025 Weekly Report 11
+date: '2025-03-15'
+tags: ['Weekly Report']
+draft: false
+images: []
+summary: 2025第11周周报
+---
+
+<TOCInline toc={props.toc}/>
+
+## 工作
+
+- ### 1 Http Request Header
+
+**在开发的时候发现一个有意思的地方**
+
+> During this process, the HTTP header key is normalized based on the net/http standard library in Go. While the header keys themselves are case-insensitive, the normalization process capitalizes the first letter of the header and each of the hyphenated words within the header.
+
+- 前端在使用 `axios` 构建自定义 `http header` 请求时，会将 `custom-header` 转换为 `Custom-Header`
+- `golang gin server` 在使用 `c.Request.Header.Get("custom-header")` 获取请求头时，也会自动转换为 `Custom-Header`
+
+
+
+------------
+
+- ### 2 前端工作流更新
+
+这周承接了一个前端开发的工作，以下是我的十倍界王拳开发工作流
+- 1. 拿到设计给的设计图，拉扯讨论定稿
+- 2. 将设计稿的截图喂给 `V0`, 给出 `prompt`，比如使用 `nextjs/typescript/react/tailwindcss/shadcn-ui components...` 实现
+- 3. 从 V0 拿到初版的代码后，开始喂给 `claude sonnet 3.7` 开始按照个性化需求开始调整，然后开始摸鱼
+
+
+------------
+
+- ### 3 先实现后优化 vs 优化好再实现
+
+在工作中我总是遇到这种情况，大家会有不同意见，运营团队希望`先实现后优化`，保证推广工作顺利进行，而技术团队则希望`优化好再上线`，提升用户体验，我暂时无法找到这两者之间的平衡点
+
+但我认可 `@ohyishi 说的: 创业团队只有 founder mode 这一种模式，其他选项都是错的`
+
+------------
+
+
+
+## 生活
+
+- **1** 健身周报：一周5练，状态还不错
+- **2** 做菜周报：周末搞了一顿火锅大杂烩：`牛肉丸/羊肉/腐竹/萝卜/青菜`
+- **3** 长沙又是一周阴天+暴雨天气，又冷又潮，衣服都晒不干，凉着发臭，只能烘干；看了天气预报下周回暖，会有好天气
+- **4** 持有 `#APLD` ，周五反弹后，回本价清仓了`NVDA`，`APLD`减仓了，下周`GTC`估计估计要 `sell the news` 了
+- **5** 买了华晨宇长沙演唱会门票，下周去看看
+
+## 其他
+
+看了`大圣`的前端防篡改视频，团队很快会推进
+<YoutubeEmbed embedId={"X-Thc5G7oU0"}/>
+
+
+
+---
+
+看了`布锅锅`的挑战赛，真正让人眼前一亮的易大师：`真的大师永远都怀着一颗学徒的心`
+
+
+<BilibiliEmbed src={"//player.bilibili.com/player.html?isOutside=true&aid=114160549501071&bvid=BV1atQ6YqEz1&cid=28861990562&p=1"} />
+
+
+
+
+
+

@@ -26,6 +26,12 @@ const favoritesData = [
                 href: 'https://jimmysong.io/kubernetes-handbook/',
                 visit: 'Visit Kubernetes Handbook'
             },
+            {
+                title: 'What every SRE should know about',
+                description: `作为一个 SRE 应该知道些什么`,
+                href: 'https://biriukov.dev//',
+                visit: 'What every SRE should know about'
+            },
         ],
         imgSrc: '',
         extensions: '/favorites/tech',
@@ -68,6 +74,12 @@ const favoritesData = [
                 description: `美团有很多实践案例写得很不错`,
                 href: 'https://tech.meituan.com/',
                 visit: 'Visit Tech-MeiTuan'
+            },
+            {
+                title: 'Kawabangga Blog',
+                description: `kawabangga 的博客`,
+                href: 'https://www.kawabangga.com/',
+                visit: 'Visit kawabangga Blog'
             },
         ],
         imgSrc: '',
@@ -171,6 +183,12 @@ const favoritesData = [
                 description: `密钥管理工具`,
                 href: 'https://vaultwarden.us/',
                 visit: 'Visit Vaultwarden'
+            },
+            {
+                title: 'Image Color Picker',
+                description: `获取图片中的颜色`,
+                href: 'https://imagecolorpicker.com/',
+                visit: 'Visit Image Color Picker'
             },
         ],
         imgSrc: '',

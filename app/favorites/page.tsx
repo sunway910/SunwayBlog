@@ -1,5 +1,5 @@
 import favoritesData from '@/data/favoritesData'
-import Card from '@/components/Card'
+import FavoriteCard from '@/components/favoriteCard'
 import { genPageMetadata } from 'app/seo'
 
 export const metadata = genPageMetadata({ title: 'Favorites' })
@@ -13,13 +13,13 @@ export default function Favorites() {
             Favorites
           </h1>
           <p className="text-2xl leading-7 text-orange-500 dark:text-gray-400">
-            My Favorites (我的收藏夹)
+            收藏夹
           </p>
         </div>
         <div className="container py-12">
           <div className="-m-4 flex flex-wrap">
             {favoritesData.map((d) => (
-              <Card
+              <FavoriteCard
                 key={d.title}
                 title={d.title}
                 linkList={d.linkList.slice(0,5)}

@@ -203,6 +203,12 @@ const favoritesData = [
                 href: 'https://www.skylinewebcams.com/',
                 visit: 'Visit SkyLineWebCams'
             },
+            {
+                title: '丑丑头像生成',
+                description: `丑丑头像生成器`,
+                href: 'https://txstc55.github.io/ugly-avatar/',
+                visit: 'Visit UglyAvatar'
+            },
         ],
         imgSrc: '',
         extensions: '/favorites/fun',

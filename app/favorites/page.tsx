@@ -1,5 +1,5 @@
 import favoritesData from '@/data/favoritesData'
-import FavoriteCard from '@/components/favoriteCard'
+import FavoriteCard from '@/components/FavoriteCard'
 import { genPageMetadata } from 'app/seo'
 
 export const metadata = genPageMetadata({ title: 'Favorites' })

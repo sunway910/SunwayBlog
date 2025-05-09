@@ -1,0 +1,190 @@
+---
+title: Resolve DB Connection Leak With pprof
+date: '2025-05-08'
+tags: ['db', 'golang', 'prometheus', "grafana", "tech", "kubernetes"]
+draft: false
+images: []
+summary: 记录一次使用 pprof 解决连接泄漏的过程
+---
+
+<TOCInline toc={props.toc} indentDepth={3} fromHeading={2} toHeading={6}/>
+
+## Abstract
+
+>  PProf is a fantastic tool for digging into the nitty-gritty performance of your Go programs. Think of it as a powerful microscope that allows you to examine where your program is spending its time and memory.
+
+## 1. Symptoms
+
+At around 4 pm, we found that the `database qps dropped to 0`, and we also got a webhook alert from cloud platform about `Database connections max limit` and `ALB HTTP 504 error`.
+![DBConnLeak-1](/static/images/GormDBConnLeak/qpsto0.png)
+![DBConnLeak-2](/static/images/GormDBConnLeak/uptomaxconnection.png)
+
+
+## 2. Temporary solution
+
+Through the monitoring panel of grafana, it can be found that `the number of connections` is increasing and not released
+
+After check grafana dashboard, I speculate that the `database connections` is not released properly, so I restart the `k8s deployment` to release the connections.
+
+```
+kubectl rollout restart deployment/xxx
+```
+
+After restarting the deployment, the number of connections is back to normal.
+
+Then I create a `k8s cronjob` for restarting the `deployment` every `8 hours` to avoid the same issue until the root cause is found and solved.
+
+## 3. Initial Investigation
+
+We set `max_connections` for mysql to `3000` based on the configuration of our k8s node (cpu/ram)
+
+Through the monitoring panel of grafana, it can be found that `the number of goroutines` is increasing and not released.
+
+So it is probably `a gorm db connection leak` when use `goroutine` to query something but not close `tx` properly.
+
+![DBConnLeak-3](/static/images/GormDBConnLeak/goroutineMetric.png)
+
+## 4. Deeper Investigation Techniques
+
+**Analyze Goroutine Stack Traces with `pprof`**
+
+```gotemplate
+import _ "net/http/pprof"
+import "net/http"
+
+func main() {
+    // Start an HTTP server to expose pprof endpoints
+    go func() {
+        http.ListenAndServe("localhost:6060", nil)
+    }()
+
+    // ... rest of your application
+}
+```
+
+Because we run app with `alpine:3.21` image, we need to install `go` and `graphviz` to analyze the goroutine stack traces in container.
+
+```bash
+wget https://go.dev/dl/go1.22.1.linux-amd64.tar.gz
+tar -C /usr/local -xzf go1.22.1.linux-amd64.tar.gz
+GOROOT=/usr/local/go
+GOPATH=/go
+PATH=$GOPATH/bin:$GOROOT/bin:$PATH
+apk add graphviz
+```
+
+After running the app for a few hours, use `pprof` to analyze the goroutine stack traces.
+
+```bash
+go tool pprof http://localhost:6060/debug/pprof/goroutine
+go tool pprof -http=:8080 /root/pprof/pprof.app.goroutine.001.pb.gz
+```
+
+Finally, we got a goroutine stack trace dump as down below:
+- Function `GetOssSignServiceBk` is the root function that causes the leak
+- `GetOssSignServiceBk` use `tx` but does not `rollback` or `commit` cause `sql (*Tx) awaitDone`
+
+![DBConnLeak-4](/static/images/GormDBConnLeak/goroutinedump.png)
+
+
+## 5. Source Code Analysis
+
+Func Call Chain: `GetOssSignServiceBk -> QueryData -> Find -> tx...`
+
+> We can see that the func start a query with tx and then return a custom error type: `errors.New`, and dont close the tx after catch this custom error type, so the tx will not be closed and will be leaked.
+
+```gotemplate
+func GetOssSignServiceBk(account, oss string) (Response, error) {
+	...
+	db, err := module.GetDB() # get a conn for gorm conn pool
+	if err != nil {
+		resp := NewResp(http.StatusInternalServerError, err.Error(), nil)
+		return resp, err
+	}
+	if err := module.QueryData(db, &module.Account{Account: account}, &acc); err != nil {
+		resp := NewResp(http.StatusInternalServerError, err.Error(), nil)
+		return resp, err
+	}
+	...
+}
+
+func QueryData(db *gorm.DB, cond, res any) error {
+	if db.Where(cond).Find(res).RowsAffected <= 0 {
+		return errors.New("data not found")
+	}
+	return nil
+}
+
+// Find finds all records matching given conditions conds
+func (db *DB) Find(dest interface{}, conds ...interface{}) (tx *DB) {
+	tx = db.getInstance()
+	if len(conds) > 0 {
+		if exprs := tx.Statement.BuildCondition(conds[0], conds[1:]...); len(exprs) > 0 {
+			tx.Statement.AddClause(clause.Where{Exprs: exprs})
+		}
+	}
+	tx.Statement.Dest = dest
+	return tx.callbacks.Query().Execute(tx)
+}
+```
+
+### Solution 1
+
+**Use a chainable method syntax**
+
+**gorm will automatically `rollback` or `commit` tx when error occurs, so we don't need to manually rollback or commit tx after query**
+
+why gorm query rollback or commit tx when error occurs:
+- `gorm.io\errors.go`
+- `gorm.io\callbacks\query.go`
+
+
+```gotemplate
+func QueryData(db *gorm.DB, cond, res any) error {
+    if err := db.Where(cond).Find(res).Error; err != nil {
+      // do something with the error
+    }
+}
+```
+### Solution 2
+
+**Use `db.Transaction` to avoid forgetting to rollback or commit**
+
+```gotemplate
+db.Transaction(func(tx *gorm.DB) error {
+  // do some database operations in the transaction (use 'tx' from this point, not 'db')
+  if err := tx.Create(&Animal{Name: "Giraffe"}).Error; err != nil {
+    // return any error will rollback
+    return err
+  }
+
+  if err := tx.Create(&Animal{Name: "Lion"}).Error; err != nil {
+    return err
+  }
+
+  // return nil will commit the whole transaction
+  return nil
+})
+```
+
+### Solution 3
+
+**Use `SkipDefaultTransaction: true` to disable the default transaction**
+
+> GORM perform write (create/update/delete) operations run inside a transaction to ensure data consistency, you can disable it during initialization if it is not required, you will gain about 30%+ performance improvement after that
+
+```gotemplate
+// Globally disable
+db, err := gorm.Open(sqlite.Open("gorm.db"), &gorm.Config{
+  SkipDefaultTransaction: true,
+})
+```
+
+## 6. Conclusion
+
+<span style={{color: 'blue'}}>Returning a custom error type without explicitly calling tx.Rollback() or tx.Commit() after a transaction query can cause a connection leak.</span>
+
+## Reference
+- https://gorm.io/docs/transactions.html
+- https://github.com/go-gorm/gorm/blob/master/callbacks/query.go
+- https://github.com/go-gorm/gorm/blob/master/errors.go

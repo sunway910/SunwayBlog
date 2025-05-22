@@ -4,7 +4,7 @@ date: '2024-10-05'
 tags: ['Tech', 'CICD', 'Kubernetes']
 draft: false
 summary: 使用 Tekton & ArgoCD 实现 CICD
-lastmod: '2024-11-28'
+lastmod: '2025-05-22'
 ---
 
 <TOCInline toc={props.toc} indentDepth={3} fromHeading={1} toHeading={6}/>
@@ -102,7 +102,12 @@ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.pas
 - Ref1: [Official docs](https://argo-cd.readthedocs.io/en/stable/operator-manual/user-management/)
 - Ref2: [Create a user with different permission](https://devops.supportsages.com/create-new-user-account-in-argo-cd-with-read-only-access-2a6e0df6df13)
 
+**Tekton pipeline pod security**
 
+Note: running TaskRuns and PipelineRuns in the "tekton-pipelines" namespace is discouraged.
+
+- Ref1: [Pipeline pod template](https://stackoverflow.com/questions/76735001/pods-xxxx-is-forbidden-violates-podsecurity-restrictedlatest-allowprivile)
+- Ref2: [Security Standards](https://github.com/tektoncd/pipeline/blob/main/docs/additional-configs.md#running-taskruns-and-pipelineruns-with-restricted-pod-security-standards)
 
 ## 2 Build Pipeline
 
@@ -233,106 +238,249 @@ Use command `kubectl apply -f task-git-clone.yaml` to add task: `git-clone`, you
     </summary>
 
 ```yaml
-apiVersion: tekton.dev/v1
+apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
   name: git-clone
+  labels:
+    app.kubernetes.io/version: "0.6"
+  annotations:
+    tekton.dev/pipelines.minVersion: "0.29.0"
+    tekton.dev/categories: Git
+    tekton.dev/tags: git
+    tekton.dev/displayName: "git clone"
+    tekton.dev/platforms: "linux/amd64,linux/s390x,linux/ppc64le,linux/arm64"
 spec:
+  description: >-
+    These Tasks are Git tasks to work with repositories used by other tasks
+    in your Pipeline.
+
+    The git-clone Task will clone a repo from the provided url into the
+    output Workspace. By default the repo will be cloned into the root of
+    your Workspace. You can clone into a subdirectory by setting this Task's
+    subdirectory param. This Task also supports sparse checkouts. To perform
+    a sparse checkout, pass a list of comma separated directory patterns to
+    this Task's sparseCheckoutDirectories param.
   workspaces:
     - name: output
-      description: The git repo will be cloned onto the volume backing this workspace
+      description: The git repo will be cloned onto the volume backing this Workspace.
     - name: ssh-directory
+      optional: true
+      description: |
+        A .ssh directory with private key, known_hosts, config, etc. Copied to
+        the user's home before git commands are executed. Used to authenticate
+        with the git remote when performing the clone. Binding a Secret to this
+        Workspace is strongly recommended over other volume types.
+    - name: basic-auth
+      optional: true
+      description: |
+        A Workspace containing a .gitconfig and .git-credentials file. These
+        will be copied to the user's home before any git commands are run. Any
+        other files in this Workspace are ignored. It is strongly recommended
+        to use ssh-directory over basic-auth whenever possible and to bind a
+        Secret to this Workspace over other volume types.
+    - name: ssl-ca-directory
+      optional: true
+      description: |
+        A workspace containing CA certificates, this will be used by Git to
+        verify the peer with when fetching or pushing over HTTPS.
   params:
     - name: repo_url
-      description: git repo url to clone
+      description: Repository URL to clone from.
       type: string
     - name: revision
-      description: git revision to checkout (branch, tag, sha, ref…)
+      description: Revision to checkout. (branch, tag, sha, ref, etc...)
       type: string
       default: main
+    - name: refspec
+      description: Refspec to fetch before checking out revision.
+      default: ""
     - name: submodules
-      description: defines if the resource should initialize and fetch the submodules
+      description: Initialize and fetch git submodules.
       type: string
       default: "true"
     - name: depth
-      description: performs a shallow clone where only the most recent commit(s) will be fetched
+      description: Perform a shallow clone, fetching only the most recent N commits.
       type: string
       default: "1"
     - name: sslVerify
-      description: defines if http.sslVerify should be set to true or false in the global git config
+      description: Set the `http.sslVerify` global git config. Setting this to `false` is not advised unless you are sure that you trust your git remote.
       type: string
       default: "true"
     - name: subdirectory
-      description: subdirectory inside the "output" workspace to clone the git repo into
+      description: Subdirectory inside the `output` Workspace to clone the repo into.
+      type: string
+      default: ""
+    - name: sparseCheckoutDirectories
+      description: Define the directory patterns to match or exclude when performing a sparse checkout.
       type: string
       default: ""
     - name: deleteExisting
-      description: clean out the contents of the repo's destination directory (if it already exists) before trying to clone the repo there
+      description: Clean out the contents of the destination directory if it already exists before cloning.
       type: string
-      default: "false"
+      default: "true"
+    - name: httpProxy
+      description: HTTP proxy server for non-SSL requests.
+      type: string
+      default: ""
+    - name: httpsProxy
+      description: HTTPS proxy server for SSL requests.
+      type: string
+      default: ""
+    - name: noProxy
+      description: Opt out of proxying HTTP/HTTPS requests.
+      type: string
+      default: ""
+    - name: verbose
+      description: Log the commands that are executed during `git-clone`'s operation.
+      type: string
+      default: "true"
+    - name: gitInitImage
+      description: The image providing the git-init binary that this Task runs.
+      type: string
+      default: "gcriotekton/pipeline-git-init:latest"
+    - name: userHome
+      description: |
+        Absolute path to the user's home directory. Set this explicitly if you are running the image as a non-root user or have overridden
+        the gitInitImage param with an image containing custom user configuration.
+      type: string
+      default: "/tekton/home"
   results:
     - name: commit
-      description: The precise commit SHA that was fetched by this Task
+      description: The precise commit SHA that was fetched by this Task.
+    - name: url
+      description: The precise URL that was fetched by this Task.
     - name: pipeline-start-time
       description: "The start time of the pipeline"
     - name: commit-info
       description: "The latest commit info"
+    - name: done
+      description: "Is the task works fine"
   steps:
     - name: clone
-      image: gcriotekton/pipeline-git-init:latest
       securityContext:
-        runAsUser: 0 # This needs root, and git-init is nonroot by default
+        runAsUser: 0
+      image: "$(params.gitInitImage)"
+      env:
+        - name: HOME
+          value: "$(params.userHome)"
+        - name: PARAM_URL
+          value: $(params.repo_url)
+        - name: PARAM_REVISION
+          value: $(params.revision)
+        - name: PARAM_REFSPEC
+          value: $(params.refspec)
+        - name: PARAM_SUBMODULES
+          value: $(params.submodules)
+        - name: PARAM_DEPTH
+          value: $(params.depth)
+        - name: PARAM_SSL_VERIFY
+          value: $(params.sslVerify)
+        - name: PARAM_SUBDIRECTORY
+          value: $(params.subdirectory)
+        - name: PARAM_DELETE_EXISTING
+          value: $(params.deleteExisting)
+        - name: PARAM_HTTP_PROXY
+          value: $(params.httpProxy)
+        - name: PARAM_HTTPS_PROXY
+          value: $(params.httpsProxy)
+        - name: PARAM_NO_PROXY
+          value: $(params.noProxy)
+        - name: PARAM_VERBOSE
+          value: $(params.verbose)
+        - name: PARAM_SPARSE_CHECKOUT_DIRECTORIES
+          value: $(params.sparseCheckoutDirectories)
+        - name: PARAM_USER_HOME
+          value: $(params.userHome)
+        - name: WORKSPACE_OUTPUT_PATH
+          value: $(workspaces.output.path)
+        - name: WORKSPACE_SSH_DIRECTORY_BOUND
+          value: $(workspaces.ssh-directory.bound)
+        - name: WORKSPACE_SSH_DIRECTORY_PATH
+          value: $(workspaces.ssh-directory.path)
+        - name: WORKSPACE_BASIC_AUTH_DIRECTORY_BOUND
+          value: $(workspaces.basic-auth.bound)
+        - name: WORKSPACE_BASIC_AUTH_DIRECTORY_PATH
+          value: $(workspaces.basic-auth.path)
+        - name: WORKSPACE_SSL_CA_DIRECTORY_BOUND
+          value: $(workspaces.ssl-ca-directory.bound)
+        - name: WORKSPACE_SSL_CA_DIRECTORY_PATH
+          value: $(workspaces.ssl-ca-directory.path)
       script: |
         #!/usr/bin/env sh
         set -eu
-        export TZ=UTC-8
-        TZ='Asia/Hong_Kong' echo -n "$(date '+Date: %Y-%m-%d Time: %H:%M:%S')" > $(results.pipeline-start-time.path)
-        if [[ -d $(workspaces.ssh-directory.path) ]]; then
-          mkdir -p ~/.ssh
-          cp $(workspaces.ssh-directory.path)/known_hosts ~/.ssh/known_hosts
-          cp $(workspaces.ssh-directory.path)/id_rsa ~/.ssh/id_rsa
-          chmod 700 ~/.ssh
-          chmod 600 ~/.ssh/*
+
+        if [ "${PARAM_VERBOSE}" = "true" ] ; then
+          set -x
         fi
-        CHECKOUT_DIR="$(workspaces.output.path)/$(params.subdirectory)"
+
+        export TZ=UTC-8
+        TZ='Asia/Shanghai' echo -n "$(date '+Date: %Y-%m-%d Time: %H:%M:%S')" > $(results.pipeline-start-time.path)
+
+        if [ "${WORKSPACE_BASIC_AUTH_DIRECTORY_BOUND}" = "true" ] ; then
+          cp "${WORKSPACE_BASIC_AUTH_DIRECTORY_PATH}/.git-credentials" "${PARAM_USER_HOME}/.git-credentials"
+          cp "${WORKSPACE_BASIC_AUTH_DIRECTORY_PATH}/.gitconfig" "${PARAM_USER_HOME}/.gitconfig"
+          chmod 400 "${PARAM_USER_HOME}/.git-credentials"
+          chmod 400 "${PARAM_USER_HOME}/.gitconfig"
+        fi
+
+        if [ "${WORKSPACE_SSH_DIRECTORY_BOUND}" = "true" ] ; then
+          cp -R "${WORKSPACE_SSH_DIRECTORY_PATH}" "${PARAM_USER_HOME}"/.ssh
+          chmod 700 "${PARAM_USER_HOME}"/.ssh
+          chmod -R 400 "${PARAM_USER_HOME}"/.ssh/*
+        fi
+
+        if [ "${WORKSPACE_SSL_CA_DIRECTORY_BOUND}" = "true" ] ; then
+           export GIT_SSL_CAPATH="${WORKSPACE_SSL_CA_DIRECTORY_PATH}"
+        fi
+        CHECKOUT_DIR="${WORKSPACE_OUTPUT_PATH}/${PARAM_SUBDIRECTORY}"
+
         cleandir() {
           # Delete any existing contents of the repo directory if it exists.
           #
-          # We don't just "rm -rf $CHECKOUT_DIR" because $CHECKOUT_DIR might be "/"
+          # We don't just "rm -rf ${CHECKOUT_DIR}" because ${CHECKOUT_DIR} might be "/"
           # or the root of a mounted volume.
-          if [[ -d "$CHECKOUT_DIR" ]] ; then
+          if [ -d "${CHECKOUT_DIR}" ] ; then
             # Delete non-hidden files and directories
-            rm -rf "$CHECKOUT_DIR"
+            # rm -rf "${CHECKOUT_DIR:?}"/ *
+            rm -rf "${CHECKOUT_DIR:?}/*"
             # Delete files and directories starting with . but excluding ..
-            rm -rf "$CHECKOUT_DIR"/.[!.]*
+            rm -rf "${CHECKOUT_DIR}"/.[!.]*
             # Delete files and directories starting with .. plus any other character
-            rm -rf "$CHECKOUT_DIR"/..?*
+            rm -rf "${CHECKOUT_DIR}"/..?*
           fi
         }
-        if [[ "$(params.deleteExisting)" == "true" ]] ; then
+
+        if [ "${PARAM_DELETE_EXISTING}" = "true" ] ; then
           cleandir
         fi
+
+        test -z "${PARAM_HTTP_PROXY}" || export HTTP_PROXY="${PARAM_HTTP_PROXY}"
+        test -z "${PARAM_HTTPS_PROXY}" || export HTTPS_PROXY="${PARAM_HTTPS_PROXY}"
+        test -z "${PARAM_NO_PROXY}" || export NO_PROXY="${PARAM_NO_PROXY}"
+
         /ko-app/git-init \
-          -url "$(params.repo_url)" \
-          -revision "$(params.revision)" \
-          -path "$CHECKOUT_DIR" \
-          -sslVerify="$(params.sslVerify)" \
-          -submodules="$(params.submodules)" \
-          -depth="$(params.depth)"
-        cd "$CHECKOUT_DIR"
+          -url="${PARAM_URL}" \
+          -revision="${PARAM_REVISION}" \
+          -refspec="${PARAM_REFSPEC}" \
+          -path="${CHECKOUT_DIR}" \
+          -sslVerify="${PARAM_SSL_VERIFY}" \
+          -submodules="${PARAM_SUBMODULES}" \
+          -depth="${PARAM_DEPTH}" \
+          -sparseCheckoutDirectories="${PARAM_SPARSE_CHECKOUT_DIRECTORIES}"
+        cd "${CHECKOUT_DIR}"
         git log -1 > $(results.commit-info.path)
-        # can checkout to a specific branch or revision
-        git checkout "$(params.revision)"
         RESULT_SHA="$(git rev-parse HEAD | tr -d '\n')"
         EXIT_CODE="$?"
-        if [ "$EXIT_CODE" != 0 ]
-        then
-          exit $EXIT_CODE
+        if [ "${EXIT_CODE}" != 0 ] ; then
+          exit "${EXIT_CODE}"
         fi
+        printf "%s" "${RESULT_SHA}" > "$(results.commit.path)"
+        printf "%s" "${PARAM_URL}" > "$(results.url.path)"
         # Make sure we don't add a trailing newline to the result!
         echo -n "$RESULT_SHA" > $(results.commit.path)
+        echo -n "yes" > $(results.done.path)
 ```
-
 </details>
 
 ### 2.2 Task: Docker Build And Push
@@ -378,16 +526,28 @@ spec:
       description: URL of the image just built.
     - name: image-build-end-time
       description: "The end time of the build task"
+    - name: done
+      description: "Is the task done?"
   steps:
+    - name: init-end-time
+      image: docker.io/library/bash:5.1.4@sha256:c523c636b722339f41b6a431b44588ab2f762c5de5ec3bd7964420ff982fb1d9
+      script: |
+        TZ='Asia/Shanghai' echo -n "$(date '+Date: %Y-%m-%d Time: %H:%M:%S')" > $(results.image-build-end-time.path)
     - name: build-and-push
       workingDir: $(workspaces.source.path)
       image: $(params.BUILDER_IMAGE)
+      env:
+        - name: GODEBUG
+          value: http2client=0
       args:
         - $(params.EXTRA_ARGS)
         - --dockerfile=$(params.DOCKERFILE)
         - --context=$(workspaces.source.path)/$(params.CONTEXT) # The user does not need to care the workspace and the source.
         - --destination=$(params.IMAGE)
         - --digest-file=$(results.IMAGE_DIGEST.path)
+      # kaniko assumes it is running as root, which means this example fails on platforms
+      # that default to run containers as random uid (like OpenShift). Adding this securityContext
+      # makes it explicit that it needs to run as root.
       securityContext:
         runAsUser: 0
     - name: write-url
@@ -398,6 +558,7 @@ spec:
         image="$(params.IMAGE)"
         echo -n "${image}" | tee "$(results.IMAGE_URL.path)"
         TZ='Asia/Hong_Kong' echo -n "$(date '+Date: %Y-%m-%d Time: %H:%M:%S')" > $(results.image-build-end-time.path)
+        echo -n "yes" > $(results.done.path)
 ```
 
 </details>
@@ -431,6 +592,8 @@ spec:
       default: main
   results:
     - name: pipeline-end-time
+    - name: done
+      description: "Is the task done?"
   steps:
     - name: update-image-tag
       image: alpine/git
@@ -451,17 +614,16 @@ spec:
 
           # git init only required in network file system pvc, do not required in disk storage pvc, cause nfs deny git search its parent working tree
           # git init
-          # 'git@github.com:sunway910/cicd-demo.git' can be a param
           git clone git@github.com:sunway910/cicd-demo.git
-          cd cicd-demo
-          git checkout "$(echo $(params.git_branch) | rev | cut -d'/' -f1 | rev)"
+          cd deployment
 
-          # cd https://github.com/sunway910/cicd-demo/cicd-demo-helm
-          cd "$(project_path)"
-          # update image tag to the latest one
-          # attention: please make sure only one `tag` in values.yaml, otherwise, `sed` will update all of them
-          sed -i "s|tag:.*|tag: $(params.commit_id)|" values.yaml || { echo "Failed to update values.yaml"; exit 1; }
-
+          read -a path_array <<<"$(params.project_path)"
+          for path in "${path_array[@]}"; do
+            echo "Update image tag in $path"
+            cd helm/$path
+            sed -i "s|tag:.*|tag: $(params.commit_id)|" values.yaml || { echo "Failed to update values.yaml"; exit 1; }
+            cd -
+          done
 
           git config --global user.email "tekton@sunway.run"
           git config --global user.name "Tekton Bot"
@@ -469,7 +631,8 @@ spec:
           echo "Commit changes: skip ci: update image tag to $(params.commit_id)"
           git commit -m "skip ci: update image tag to $(params.commit_id)" || { echo "Failed to commit changes"; exit 1; }
           git push || { echo "Failed to push changes"; exit 1; }
-          TZ='Asia/Hong_Kong' echo -n "$(date '+Date: %Y-%m-%d Time: %H:%M:%S')" > $(results.pipeline-end-time.path)
+          TZ='Asia/Shanghai' echo -n "$(date '+Date: %Y-%m-%d Time: %H:%M:%S')" > $(results.pipeline-end-time.path)
+          echo -n "yes" > $(results.done.path)
         EOF
       securityContext:
         runAsUser: 0
@@ -523,19 +686,19 @@ spec:
       default: "Author: Tekton Bot"
     - name: pipeline_result_link
       type: string
-      default: "https://tekton-dashboard.sunway.run/#/pipelineruns"
+      default: "https://tekton-dash.sunway.run/#/pipelineruns"
     - name: github_commit_link
       type: string
       default: "https://github.com/sunway910/cicd-demo"
     - name: mention_user_open_id
       type: string
       default: "all"
+    - name: pipeline_owner
+      type: string
+      default: "ou_xxxxxx"
     - name: pipeline_start_time
       type: string
       default: "2024-01-01 00:00:00"
-    - name: pipeline_end_time
-      type: string
-      default: "2024-01-01 01:00:00"
     - name: webhook_url
       type: string
       default: ""
@@ -564,8 +727,8 @@ spec:
         wide_screen_mode="$(params.wide_screen_mode)"
         pipeline_title="$(params.pipeline_title)"
         pipeline_start_time="$(params.pipeline_start_time)"
-        pipeline_end_time="$(params.pipeline_end_time)"
         mention_user_open_id="$(params.mention_user_open_id)"
+        pipeline_owner="$(params.pipeline_owner)"
         commit_info=$(echo -n "$(params.commit_info)" | awk 1 ORS='\\n')
         pipeline_result_link="$(params.pipeline_result_link)"
         github_commit_link="$(params.github_commit_link)"
@@ -595,13 +758,6 @@ spec:
                         "content": "**Start Time:**\n${pipeline_start_time}",
                         "tag": "lark_md"
                       }
-                    },
-                    {
-                      "is_short": true,
-                      "text": {
-                        "content": "**End Time:**\n${pipeline_end_time}",
-                        "tag": "lark_md"
-                      }
                     }
                   ]
                 },
@@ -611,7 +767,7 @@ spec:
                 {
                   "tag": "div",
                   "text": {
-                    "content": "<at id=${mention_user_open_id}></at>${pipeline_result_content}",
+                    "content": "<at id=${mention_user_open_id}></at> \n <at id=${pipeline_owner}></at> \n ${pipeline_result_content}",
                     "tag": "lark_md"
                   }
                 },
@@ -667,6 +823,9 @@ spec:
         curl -X POST -H "Content-Type: application/json" -d "${json_data}" "$webhook_url"
 ```
 
+
+
+
 </details>
 
 
@@ -709,6 +868,7 @@ spec:
     - name: github-cred
   tasks:
     - name: fetch-from-git
+      onError: continue
       taskRef:
         name: git-clone
       params:
@@ -724,6 +884,11 @@ spec:
         - name: ssh-directory
           workspace: github-cred
     - name: build-image
+      onError: continue
+      when:
+        - input: $(tasks.fetch-from-git.results.done)
+          operator: in
+          values: [ "yes" ]
       runAfter: [ fetch-from-git ]
       taskRef:
         name: kaniko-build-and-push
@@ -740,6 +905,11 @@ spec:
         - name: dockerconfig
           workspace: docker-cred
     - name: update-image-tag
+      onError: continue
+      when:
+        - input: $(tasks.build-image.results.done)
+          operator: in
+          values: [ "yes" ]
       runAfter: [ build-image ]
       taskRef:
         name: update-image-tag
@@ -777,10 +947,10 @@ spec:
           value: https://github.com/sunway910/cicd-demo/commit/$(tasks.fetch-from-git.results.commit)
         - name: mention_user_open_id
           value: "all"
+        - name: pipeline_owner
+          value: "ou_xxx"
         - name: pipeline_start_time
           value: $(tasks.fetch-from-git.results.pipeline-start-time)
-        - name: pipeline_end_time
-          value: $(tasks.update-image-tag.results.pipeline-end-time)
 ```
 
 </details>
@@ -810,7 +980,33 @@ metadata:
   name: config-defaults
   namespace: tekton-pipelines
 data:
+  # kubectl label node node-xxx node-role.kubernetes.io/worker=pipeline
+  # kubectl taint node node-xxx dedicated=pipeline:NoSchedule
+  default-pod-template: |
+    nodeSelector:
+      node-role.kubernetes.io/worker: pipeline
+    tolerations:
+    - key: "dedicated"
+      operator: "Equal"
+      value: "pipeline"
+      effect: "NoSchedule"
+
   _example: |
+    ################################
+    #                              #
+    #    EXAMPLE CONFIGURATION     #
+    #                              #
+    ################################
+
+    # This block is not actually functional configuration,
+    # but serves to illustrate the available configuration
+    # options and document them in a way that is accessible
+    # to users that `kubectl edit` this config map.
+    #
+    # These sample configuration options may be copied out of
+    # this example block and unindented to be in the data block
+    # to actually change the configuration.
+
     # default-timeout-minutes contains the default number of
     # minutes to use for TaskRun and PipelineRun, if none is specified.
     default-timeout-minutes: "60"  # 60 minutes
@@ -828,18 +1024,101 @@ data:
     # default-pod-template contains the default pod template to use for
     # TaskRun and PipelineRun. If a pod template is specified on the
     # PipelineRun, the default-pod-template is merged with that one.
-    default-pod-template: |
-      nodeSelector:
-        pipeline: "true"
+    # default-pod-template: |
+
     # default-affinity-assistant-pod-template contains the default pod template
     # to use for affinity assistant pods. If a pod template is specified on the
     # PipelineRun, the default-affinity-assistant-pod-template is merged with
     # that one.
     # default-affinity-assistant-pod-template:
 
+    # default-cloud-events-sink contains the default CloudEvents sink to be
+    # used for TaskRun and PipelineRun, when no sink is specified.
+    # Note that right now it is still not possible to set a PipelineRun or
+    # TaskRun specific sink, so the default is the only option available.
+    # If no sink is specified, no CloudEvent is generated
+    # default-cloud-events-sink:
+
+    # default-task-run-workspace-binding contains the default workspace
+    # configuration provided for any Workspaces that a Task declares
+    # but that a TaskRun does not explicitly provide.
+    # default-task-run-workspace-binding: |
+    #   emptyDir: {}
+
     # default-max-matrix-combinations-count contains the default maximum number
     # of combinations from a Matrix, if none is specified.
     default-max-matrix-combinations-count: "256"
+
+    # default-forbidden-env contains comma seperated environment variables that cannot be
+    # overridden by podTemplate.
+    default-forbidden-env:
+
+    # default-resolver-type contains the default resolver type to be used in the cluster,
+    # no default-resolver-type is specified by default
+    default-resolver-type:
+
+    # default-imagepullbackoff-timeout contains the default duration to wait
+    # before requeuing the TaskRun to retry, specifying 0 here is equivalent to fail fast
+    # possible values could be 1m, 5m, 10s, 1h, etc
+    # default-imagepullbackoff-timeout: "5m"
+
+    # default-maximum-resolution-timeout specifies the default duration used by the
+    # resolution controller before timing out when exceeded.
+    # Possible values include "1m", "5m", "10s", "1h", etc.
+    # Example: default-maximum-resolution-timeout: "1m"
+
+    # default-container-resource-requirements allow users to update default resource requirements
+    # to a init-containers and containers of a pods create by the controller
+    # Onet: All the resource requirements are applied to init-containers and containers
+    # only if the existing resource requirements are empty.
+    # default-container-resource-requirements: |
+    #   place-scripts: # updates resource requirements of a 'place-scripts' container
+    #     requests:
+    #       memory: "64Mi"
+    #       cpu: "250m"
+    #     limits:
+    #       memory: "128Mi"
+    #       cpu: "500m"
+    #
+    #   prepare: # updates resource requirements of a 'prepare' container
+    #     requests:
+    #       memory: "64Mi"
+    #       cpu: "250m"
+    #     limits:
+    #       memory: "256Mi"
+    #       cpu: "500m"
+    #
+    #   working-dir-initializer: # updates resource requirements of a 'working-dir-initializer' container
+    #     requests:
+    #       memory: "64Mi"
+    #       cpu: "250m"
+    #     limits:
+    #       memory: "512Mi"
+    #       cpu: "500m"
+    #
+    #   prefix-scripts: # updates resource requirements of containers which starts with 'scripts-'
+    #     requests:
+    #       memory: "64Mi"
+    #       cpu: "250m"
+    #     limits:
+    #       memory: "128Mi"
+    #       cpu: "500m"
+    #
+    #   prefix-sidecar-scripts: # updates resource requirements of containers which starts with 'sidecar-scripts-'
+    #     requests:
+    #       memory: "64Mi"
+    #       cpu: "250m"
+    #     limits:
+    #       memory: "128Mi"
+    #       cpu: "500m"
+    #
+    #   default: # updates resource requirements of init-containers and containers which has empty resource resource requirements
+    #     requests:
+    #       memory: "64Mi"
+    #       cpu: "250m"
+    #     limits:
+    #       memory: "256Mi"
+    #       cpu: "500m"
 ```
 
 </details>
@@ -880,13 +1159,14 @@ spec:
         workspaces:
           - name: git-source
             volumeClaimTemplate:
+              # please make sure a default storage class is available in your cluster
               spec:
                 accessModes:
                   - ReadWriteOnce
                 resources:
                   requests:
                     storage: 10Gi
-                #storageClassName: csi
+                #storageClassName: my-custom-sc
           - name: docker-cred
             secret:
               defaultMode: 420
@@ -1494,7 +1774,7 @@ connect to a private repo via ssh as below
 
 ![ArgocdNewRepo](/static/images/ArgocdNewRepo.png)
 
-### 4.3 Create An Application as below
+### 4.3 Create An Application
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application

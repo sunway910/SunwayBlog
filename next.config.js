@@ -35,6 +35,9 @@ module.exports = () => {
         output: output,
         distDir: basePath,
         images: {
+            domains: [
+                'r2.sunway.run',
+            ],
             unoptimized: true,
             remotePatterns: [
                 {

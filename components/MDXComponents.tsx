@@ -7,6 +7,8 @@ import CustomLink from './Link'
 import TableWrapper from './TableWrapper'
 import BilibiliEmbed from "./BilibiliEmbed";
 import YoutubeEmbed from "./YoutubeEmbed";
+import VideoEmbed from "./VideoEmbed";
+
 
 export const components: MDXComponents = {
     Image,
@@ -17,4 +19,5 @@ export const components: MDXComponents = {
     BlogNewsletterForm,
     BilibiliEmbed,
     YoutubeEmbed,
+    VideoEmbed,
 }

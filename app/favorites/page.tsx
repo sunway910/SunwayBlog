@@ -12,9 +12,6 @@ export default function Favorites() {
           <h1 className="text-3xl font-extrabold leading-9 tracking-tight text-gray-900 dark:text-gray-100 sm:text-4xl sm:leading-10 md:text-6xl md:leading-14">
             Favorites
           </h1>
-          <p className="text-2xl leading-7 text-orange-500 dark:text-gray-400">
-            收藏夹
-          </p>
         </div>
         <div className="container py-12">
           <div className="-m-4 flex flex-wrap">

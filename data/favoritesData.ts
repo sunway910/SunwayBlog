@@ -1,6 +1,6 @@
 const favoritesData = [
     {
-        title: 'Tech (收藏的技术网站)',
+        title: 'Tech (技术网站)',
         linkList: [
             {
                 title: 'TheByteBook',
@@ -37,7 +37,7 @@ const favoritesData = [
         extensions: '/favorites/tech',
     },
     {
-        title: 'Blog (收藏的技术博客)',
+        title: 'Blog (技术博客)',
         linkList: [
             {
                 title: 'plantegg 的博客',
@@ -86,7 +86,7 @@ const favoritesData = [
         extensions: '/favorites/blog',
     },
     {
-        title: 'Tool (收藏的开发工具)',
+        title: 'Tool (开发工具)',
         linkList: [
             {
                 title: 'Helm Chart Template',
@@ -195,7 +195,7 @@ const favoritesData = [
         extensions: '/favorites/tool',
     },
     {
-        title: 'Fun (收藏的有意思的网站)',
+        title: 'Funny',
         linkList: [
             {
                 title: '云旅游',

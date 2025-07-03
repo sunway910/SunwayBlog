@@ -34,13 +34,6 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
-  alternates: {
-    canonical: '/',
-    languages: {
-      'en-US': '/en-US',
-      'zh-CN': '/zh-CN',
-    },
-  },
   openGraph: {
     title: siteMetadata.title,
     description: siteMetadata.description,
@@ -51,6 +44,10 @@ export const metadata: Metadata = {
     type: 'website',
   },
   alternates: {
+    languages: {
+      'en-US': '/en-US',
+      'zh-CN': '/zh-CN',
+    },
     canonical: './',
     types: {
       'application/rss+xml': `${siteMetadata.siteUrl}/feed.xml`,

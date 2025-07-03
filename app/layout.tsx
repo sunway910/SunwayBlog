@@ -25,13 +25,29 @@ export const metadata: Metadata = {
     template: `%s | ${siteMetadata.title}`,
   },
   description: siteMetadata.description,
+  keywords: siteMetadata.keywords,
+  authors: [{ name: siteMetadata.author }],
+  creator: siteMetadata.author,
+  publisher: siteMetadata.author,
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  alternates: {
+    canonical: '/',
+    languages: {
+      'en-US': '/en-US',
+      'zh-CN': '/zh-CN',
+    },
+  },
   openGraph: {
     title: siteMetadata.title,
     description: siteMetadata.description,
-    url: './',
+    url: siteMetadata.siteUrl,
     siteName: siteMetadata.title,
     images: [siteMetadata.socialBanner],
-    locale: 'en_US',
+    locale: siteMetadata.locale,
     type: 'website',
   },
   alternates: {
@@ -39,6 +55,13 @@ export const metadata: Metadata = {
     types: {
       'application/rss+xml': `${siteMetadata.siteUrl}/feed.xml`,
     },
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: siteMetadata.title,
+    description: siteMetadata.description,
+    images: [siteMetadata.socialBanner],
+    creator: '@sunwayz911',
   },
   robots: {
     index: true,
@@ -50,11 +73,6 @@ export const metadata: Metadata = {
       'max-image-preview': 'large',
       'max-snippet': -1,
     },
-  },
-  twitter: {
-    title: siteMetadata.title,
-    card: 'summary_large_image',
-    images: [siteMetadata.socialBanner],
   },
 }
 

@@ -63,6 +63,7 @@ export async function generateMetadata(props: {
       url: './',
       images: ogImages,
       authors: authors.length > 0 ? authors : [siteMetadata.author],
+      tags: post.tags,
     },
     twitter: {
       card: 'summary_large_image',

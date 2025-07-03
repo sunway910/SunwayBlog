@@ -2,8 +2,8 @@
 const siteMetadata = {
   title: 'Sunway Blog',
   author: 'Sunway',
-  headerTitle: 'SunwayBlog',
-  description: '',
+  headerTitle: 'Sunway Blog',
+  description: 'Sunway Blog - Development & Operations Insights',
   language: 'en-us',
   theme: 'system', // system, dark or light
   siteUrl: 'https://sunway.run',
@@ -19,6 +19,12 @@ const siteMetadata = {
   locale: 'en-US',
   // set to true if you want a navbar fixed to the top
   stickyNav: false,
+  keywords: 'web development, SRE, DevOps, cloud native, programming, technical blog, sunway',
+  openGraph: {
+    type: 'website',
+    title: 'Sunway Blog - Web Development & SRE Insights',
+    description: '个人技术博客，分享关于开发、运维相关内容'
+  },
   analytics: {
     // If you want to use an analytics provider you have to add it to the
     // content security policy in the `next.config.js` file.

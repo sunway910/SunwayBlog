@@ -1,0 +1,149 @@
+---
+title: SD-WAN
+date: '2023-06-23'
+tags: ['Tech', 'Network', 'Fortigate']
+draft: false
+summary: SD-WAN with Fortigate
+---
+
+<TOCInline toc={props.toc}/>
+
+## SD-WAN Abstract
+
+### What is SD-WAN
+
+SD-WAN (Software-Defined Wide Area Network) 是 FortiGate 设备内置的强大 WAN 优化解决方案。
+
+它通过虚拟 WAN 链路技术将多个网络成员接口组合成一个虚拟接口，实现智能路由和负载均衡。
+
+### SD-WAN Advantages
+
+1. **简化配置** - 只需设定统一的路由和防火墙策略即可应用到所有成员接口
+2. **提升稳定性** - 特别适合拥有多条 `WAN` 线路的企业环境
+3. **智能负载均衡** - 支持基于带宽使用量、会话数或应用感知路由的负载均衡算法
+4. **线路质量监测** - 支持通过 `Ping`、`HTTP` 和 `DNS` 等协议实时测量线路的`Latency、Jitter、Packet Loss`
+5. **动态线路选择** - 根据监测数据自动选择最优线路，确保企业网络连续性
+
+------------
+
+
+# 1 Create SD-WAN Zone
+
+首先需要在 `FortiGate` 上创建 `SD-WAN Zone`
+
+![sd-wan-zone1](/static/images/SDWAN/sd-wan-zone1.png)
+
+![sd-wan-zone2](/static/images/SDWAN/sd-wan-zone2.png)
+
+------------
+
+
+
+# 2 New SD-WAN Member
+
+添加 `SD-WAN Member`
+
+![](/static/images/SDWAN/sd-wan-zone3.png)
+
+![](/static/images/SDWAN/sd-wan-zone4.png)
+
+
+------------
+
+
+
+# 3 Edit Performance SLA
+
+性能 `SLA (Service Level Agreement)` 监测是 `SD-WAN` 智能路由的基础，用于持续评估线路质量：
+
+![](/static/images/SDWAN/PerformanceSLAs1.png)
+
+**配置步骤：**
+
+1. 选择监测协议（如 Ping）并设置主动监测
+2. 设定 SLA 目标阈值
+- 延迟 (Latency) > 10ms
+- 抖动 (Jitter) > 10ms
+- 丢包率 (Packet Loss) > 50%
+3. 设定链路状态更新参数
+- 监测频率：每 500ms
+- 每次监测发送 5 个数据包
+- 如检测到线路中断，自动更新路由表移除故障线路
+
+![](/static/images/SDWAN/PerformanceSLAs2.png)
+
+
+------------
+
+
+
+# 4 Define SD-WAN Rules
+
+SD-WAN 规则决定了不同类型的流量应如何通过 SD-WAN 接口路由：
+
+![](/static/images/SDWAN/SD-WANRules1.png)
+
+**规则配置：**
+
+1. 设定流量来源和目的地（可基于应用程序和互联网服务）
+2. 选择 `SD-WAN` 算法（例如：`Best Quality` - 使用质量最佳的线路）
+3. 指定测量的 `SLA` 参数（例如：`PingTest`）
+4. 设定质量判断标准（例如：以 `Packet Loss` 作为主要判断指标）
+
+
+![](/static/images/SDWAN/SD-WANRules2.png)
+
+
+**注意：** `SD-WAN` 规则按从上往下的顺序匹配。系统默认提供一条隐式规则 (`Implicit Rule`) 用于处理未被前面规则匹配的流量。
+
+------------
+
+
+# 5 Implicit SD-WAN Rule
+
+隐式规则提供多种负载均衡算法选择：
+
+**负载均衡算法说明：**
+
+1. **Source IP** - 相同来源 `IP` 的连接使用相同的网络接口
+2. **Sessions** - 根据每个网络接口的连接数设定使用权重分布
+3. **Spillover** - 根据网络设定的带宽上限分配流量
+4. **Source-Destination IP** - 相同来源和目的 `IP` 的连接使用相同的网络接口
+5. **Volume** - 根据每个接口的累积字节数设定使用权重分布
+
+![](/static/images/SDWAN/ImplicitSD-WANRule1.png)
+
+------------
+
+
+# 6 Static Route and Policy
+
+将 `Default Route` 指向 `SD-WAN` 接口：
+
+![](/static/images/SDWAN/StaticRouteAndPolicy1.png)
+
+设置防火墙策略允许流量通过：
+
+![](/static/images/SDWAN/StaticRouteAndPolicy2.png)
+
+**注意：** 如需启用 Central NAT，请参考 [FortiGate Central NAT 设定介绍](https://andyitsite.blog/fortigate-central-nat%e8%a8%ad%e5%ae%9a%e4%bb%8b%e7%b4%b9/)
+
+
+------------
+
+
+# 7 Associated-interface
+
+在启用 SD-WAN 的环境下，如果在策略中设置两个或更多 WAN 的 IP 池，可能会出现源 IP 使用了不匹配的 WAN IP 导致对外连接异常的问题。此时可以在 IP 池配置中设置 `associated-interface` 参数，以关联到正确的 WAN 接口：
+
+
+```text
+#config firewall ippool
+    edit <Wan1>
+        set associated-interface <interface>
+    next
+    edit <Wan2>
+        set associated-interface <interface>
+    next
+end
+```

@@ -1,0 +1,350 @@
+---
+title: OpenSSL
+date: '2023-06-09'
+tags: ['Tech', 'Network']
+draft: false
+summary: Learn about OpenSSL and its features.
+---
+
+<TOCInline toc={props.toc}/>
+
+# OpenSSL主要包含三个功能部分
+
+- 密码算法库
+- SSL协议库
+- 应用程序
+
+
+# OpenSSL实现了常用的摘要的算法
+
+
+```bash
+openssl dgst
+
+常用选项有：
+[-md5|-md4|-md2|-sha1|-sha|-mdc2|-ripemd160|-dss1] ：指定一种摘要算法
+-out filename: 将摘要的内容保存到指定文件中
+
+帮助：man dgst
+```
+Example:
+
+```bash
+[root@Sunway-CentOS7-Test tmp]# clear
+[root@Sunway-CentOS7-Test tmp]# echo 'Sunthycloud' | openssl dgst -md5
+(stdin)= eb9e1af72a14f5fc18bcefb9f2548085
+[root@Sunway-CentOS7-Test tmp]# echo 'Sunthycloud' | openssl dgst -sha
+(stdin)= b0b245bc339d0b4894b31ee7e5c856c45b7d4b5b
+[root@Sunway-CentOS7-Test tmp]# echo 'Sunthycloud' | openssl dgst -sha256
+(stdin)= ccc2b2f1ab774ee2d0e3bb6043ff001a18671ec4fb75902e85d13b40a10412a3
+[root@Sunway-CentOS7-Test tmp]# echo 'Sunthycloud' | md5sum
+eb9e1af72a14f5fc18bcefb9f2548085  -
+
+```
+
+
+
+# OpenSSL对称加密
+OpenSSL一共提供了8种对称加密算法，其中7种是分组加密算法，仅有的一种流加密算法是RC4。这7种分组加密算法分别是AES、DES、Blowfish、CAST、IDEA、RC2、RC5，都支持电子密码本模式（ECB）、加密分组链接模式（CBC）、加密反馈模式（CFB）和输出反馈模式（OFB）四种常用的分组密码加密模式。其中，AES使用的加密反馈模式（CFB）和输出反馈模式（OFB）分组长度是128位，其它算法使用的则是64位。事实上，DES算法里面不仅仅是常用的DES算法，还支持三个密钥和两个密钥3DES算法。
+
+```bash
+openssl enc -ciphername [-in filename] [-out filename] [-pass arg] [-e] [-d] [-a/-base64] [-A] [-k password] [-kfile filename] [-K key] [-iv IV] [-S salt] [-salt] [-nosalt] [-z] [-md] [-p] [-P] [-bufsize number] [-nopad] [-debug] [-none]  [-engine id]
+
+options are
+-in <file>     输入文件
+-out <file>    输出文件
+-pass <arg>    密码
+-e             encrypt 加密操作
+-d             decrypt 解密操作
+-a/-base64     base64 encode/decode, depending on encryption flag 是否将结果base64编码
+-k             passphrase is the next argument
+-kfile         passphrase is the first line of the file argument
+-md            指定密钥生成的摘要算法 默认MD5
+-S             salt in hex is the next argument 用于加盐加密
+-K/-iv         key/iv in hex is the next argument 加密所需的key和iv向量
+-[pP]          print the iv/key (then exit if -P) 是否需要在控制台输出生成的 key和iv向量
+-bufsize <n>   buffer size 读写文件的I/O缓存，一般不需要指定
+-nopad         disable standard block padding 禁止标准填充
+-engine e      use engine e, possibly a hardware device 指定三方加密设备
+Cipher Types  以下是部分算法，我们可以选择用哪种算法加密
+-aes-128-cbc               -aes-128-cbc-hmac-sha1     -aes-128-cfb
+-aes-128-cfb1              -aes-128-cfb8              -aes-128-ctr
+-aes-128-ecb               -aes-128-gcm               -aes-128-ofb
+```
+
+
+Example:
+
+```bash
+[root@Sunway-CentOS7-Test tmp]# echo 'Sunthycloud' > temp.txt
+[root@Sunway-CentOS7-Test tmp]# openssl enc -aes-128-cbc -in temp.txt -out encrypt.txt
+enter aes-128-cbc encryption password:
+Verifying - enter aes-128-cbc encryption password:
+[root@Sunway-CentOS7-Test tmp]# openssl aes-128-cbc -d -in encrypt.txt -out encrypt_decrypt.txt
+enter aes-128-cbc decryption password:
+[root@Sunway-CentOS7-Test tmp]# xxd encrypt
+encrypt_decrypt.txt  encrypt.txt
+[root@Sunway-CentOS7-Test tmp]# xxd encrypt_decrypt.txt
+0000000: 5375 6e74 6879 636c 6f75 640a            Sunthycloud.
+
+```
+
+
+
+# OpenSSL非对称加密
+**OpenSSL一共实现了4种非对称加密算法，包括DH算法、RSA算法、DSA算法和椭圆曲线算法（EC）。
+**
+## 生成私钥
+**利用openssl命令的子命令genrsa生成私钥，genrsa的语法如下：**
+
+```bash
+genrsa
+功能：
+用于生成RSA私钥，不会生成公钥，因为公钥提取自私钥
+使用参数：
+openssl genrsa [-out filename] [-passout arg] [-des] [-des3] [-idea] [numbits]
+
+选项说明：
+-out filename     ：将生成的私钥保存至filename文件，若未指定输出文件，则为标准输出。
+
+-numbits            ：指定要生成的私钥的长度，默认为1024。该项必须为命令行的最后一项参数。
+
+-des|-des3|-idea：指定加密私钥文件用的算法，这样每次使用私钥文件都将输入密码，太麻烦所以很少使用。
+
+-passout args    ：加密私钥文件时，传递密码的格式，如果要加密私钥文件时单未指定该项，则提示输入密码。传递密码的args的格式见一下格式。
+　　pass:password   ：password表示传递的明文密码
+　　env:var               ：从环境变量var获取密码值
+　　file:filename        ：filename文件中的第一行为要传递的密码。若filename同时传递给"-passin"和"-passout"选项，则filename的第一行为"-passin"的值，第二行为"-passout"的值
+　　stdin                   ：从标准输入中获取要传递的密码
+```
+## 提取公钥
+**用rsa子命令从生成的私钥文件中提取公钥，rsa子命令的语法为：**
+
+```bash
+openssl rsa [-inform PEM|NET|DER] [-outform PEM|NET|DER] [-in filename] [-passin arg] [-out filename] [-passout arg] [-sgckey] [-des] [-des3] [-idea] [-text] [-noout] [-modulus] [-check] [-pubin] [-pubout] [-RSAPublicKey_in] [-RSAPublicKey_out] [-engine id]
+
+rsa [options] <infile >outfile
+where options are
+ -inform arg     输入文件编码格式，只有pem和der两种
+ -outform arg    输出文件编码格式，只有pem和der两种
+ -in arg         input file 指明私钥文件的存放路径
+ -sgckey         Use IIS SGC key format
+ -passin arg     如果输入文件被对称加密过，需要指定输入文件的密码
+ -out arg        output file 指明将公钥的保存路径
+ -passout arg    如果输出文件也需要被对称加密，需要指定输出文件的密码
+ -des            对输出结果采用对称加密 des算法
+ -des3          对输出结果采用对称加密 des3算法
+ -seed           encrypt PEM output with cbc seed
+ -aes128, -aes192, -aes256
+                 encrypt PEM output with cbc aes
+ -camellia128, -camellia192, -camellia256
+                 encrypt PEM output with cbc camellia
+  以上几个都是对称加密算法的指定，生成私钥的时候一般会用到
+ -text           print the key in text 以明文形式输出各个参数值
+ -noout          don't print key out 不输出密钥到任何文件
+ -modulus        输出模数值
+ -check          检查输入密钥的正确性和一致性
+ -pubin          指定输入文件是公钥
+ -pubout         指定输出文件是公钥
+ -engine e      指定三方加密库或者硬件
+```
+## 公钥加密、私钥解密数据
+**使用rsautl进行加密和解密操作，语法如下：**
+
+```bash
+openssl rsautl [-in file] [-out file] [-inkey file] [-pubin] [-certin] [-sign] [-verify] [-encrypt] [-decrypt] [-pkcs] [-ssl] [-raw] [-hexdump] [-asn1parse]
+
+openssl rsautl -h
+Usage: rsautl [options]
+-in file        input file 输入文件
+-out file       output file 输出文件
+-inkey file     input key 指定私有密钥文件，格式是RSA私有密钥文件
+-keyform arg    private key format - default PEM 指定私钥格式
+-pubin          input is an RSA public 指定输入的是RSA公钥
+-certin         input is a certificate carrying an RSA public key 指定输入的是证书文件
+-ssl            使用SSLv2的填充方式
+-raw            不进行填充
+-pkcs           使用V1.5的填充方式(默认)
+-oaep           使用OAEP的填充方式
+-sign           使用私钥做签名
+-verify         使用公钥认证签名
+-encrypt        使用公钥加密
+-decrypt        使用私钥解密
+-hexdump        以16进制打印
+-engine e       指定三方库或者硬件设备
+-passin arg    pass phrase source 传递密码来源
+```
+
+
+Example:
+
+```bash
+[root@Sunway-CentOS7-Test tmp]# /*创建需要加密的文件*/
+-bash: /*创建需要加密的文件*/: No such file or directory
+[root@Sunway-CentOS7-Test tmp]# # /*创建需要加密的文件*/
+[root@Sunway-CentOS7-Test tmp]# echo "hello world Sunthycloud" > original.txt
+[root@Sunway-CentOS7-Test tmp]# # /*生成RSA密钥，采用des对称加密私钥*/
+[root@Sunway-CentOS7-Test tmp]# openssl genrsa -des -passout pass:123456 -out RSA.pem
+Generating RSA private key, 2048 bit long modulus
+........................................................+++
+.............+++
+e is 65537 (0x10001)
+[root@Sunway-CentOS7-Test tmp]# # /*提取公钥*/
+[root@Sunway-CentOS7-Test tmp]# openssl rsa -in RSA.pem -passin pass:123456 -pubout -out pub.pem
+writing RSA key
+[root@Sunway-CentOS7-Test tmp]# # /*使用RSA作为密钥进行加密，实际上使用其中的公钥进行加密*/
+[root@Sunway-CentOS7-Test tmp]# openssl rsautl -encrypt -in original.txt -inkey RSA.pem -passin pass:123456 -out enc.txt
+[root@Sunway-CentOS7-Test tmp]# # /*使用RSA作为密钥进行解密，实际上使用其中的私钥进行解密*/
+[root@Sunway-CentOS7-Test tmp]# openssl rsautl -decrypt -in enc.txt -inkey RSA.pem -passin pass:123456 -out reOriginal.txt
+[root@Sunway-CentOS7-Test tmp]# # /* 查看加密后的内容 */
+[root@Sunway-CentOS7-Test tmp]# xxd enc.txt
+0000000: 8fc1 3b65 bd06 106d 3287 00f5 8364 5994  ..;e...m2....dY.
+0000010: c08c fc1b 1034 c47a d193 de1e 79ba 9db5  .....4.z....y...
+0000020: 1405 fb98 2db1 650b a9bf b7e4 4be9 5c27  ....-.e.....K.\'
+0000030: 22c9 471b ca19 1b9e 892a 1ff7 9023 30f3  ".G......*...#0.
+0000040: 3210 4c39 7bb9 bf99 08c8 4bc0 997a f43c  2.L9{.....K..z.<
+0000050: d0b0 c251 66c4 c79d b492 78b5 9d23 be85  ...Qf.....x..#..
+0000060: 541f 3d52 2ed0 b344 6bf0 2323 bd7e c1e9  T.=R...Dk.##.~..
+0000070: b2f1 3219 3b96 3742 9131 0ab1 bf4e b71d  ..2.;.7B.1...N..
+0000080: d5d1 5a93 cf47 6cdf 93d3 4176 9d91 3dd7  ..Z..Gl...Av..=.
+0000090: deec dacd cdb3 436a 147e 1693 9cbe 8b75  ......Cj.~.....u
+00000a0: 3ead 3332 1313 3742 5650 3d1c 0c6a 6ddf  >.32..7BVP=..jm.
+00000b0: d0f4 f559 b2a6 10ba f0dc 86a7 4ef0 3e1f  ...Y........N.>.
+00000c0: 89ba 3285 a278 f0d4 545f ebf6 7699 4de2  ..2..x..T_..v.M.
+00000d0: 0197 76c1 db81 37f6 def9 c10f ae74 14a1  ..v...7......t..
+00000e0: 45ec ef2c 6d88 1cf2 fdcd fb8a 303a 2e18  E..,m.......0:..
+00000f0: e90c 4f9d 33a9 fbd2 125d 5503 016f 9b9b  ..O.3....]U..o..
+[root@Sunway-CentOS7-Test tmp]# # /*查看解密后的内容*/
+[root@Sunway-CentOS7-Test tmp]# xxd reOriginal.txt
+0000000: 6865 6c6c 6f20 776f 726c 6420 5375 6e74  hello world Sunt
+0000010: 6879 636c 6f75 640a                      hycloud.
+[root@Sunway-CentOS7-Test tmp]# # /*使用公钥进行加密*/
+[root@Sunway-CentOS7-Test tmp]# openssl rsautl -encrypt -in original.txt -inkey pub.pem -pubin -out enc1.txt
+[root@Sunway-CentOS7-Test tmp]# # /*私钥进行解密*/
+[root@Sunway-CentOS7-Test tmp]# openssl rsautl -decrypt -in enc1.txt -inkey RSA.pem -passin pass:123456 -out reOriginal1.txt
+[root@Sunway-CentOS7-Test tmp]# # /*查看解密后的内容*/
+[root@Sunway-CentOS7-Test tmp]# xxd reOriginal1.txt
+0000000: 6865 6c6c 6f20 776f 726c 6420 5375 6e74  hello world Sunt
+0000010: 6879 636c 6f75 640a                      hycloud.
+
+```
+
+
+# 数字签名
+**用私钥进行加密，公钥解密叫做数字签名，因为私钥只有一份，用公钥解密出来验证确认是你用这个私钥做的签名，这就是签名和验证。
+
+先用pkcs8子命令提取出pkcs8格式的私钥，rsa默认生成pkcs1格式的私钥，也可以直接使用默认的来做签名和验证，在用java等一些开发中需要要求私钥是pkcs8格式，pkcs8子命令格式以及参数如下：
+**
+```bash
+openssl pkcs8
+[-inform PEM|DER] [-outform PEM|DER] [-in filename] [-passin arg] [-out filename]
+[-passout arg] [-topk8] [-noiter] [-nocrypt] [-nooct] [-embed] [-nsdb] [-v2 alg]
+[-v1 alg] [-engine id]
+
+参数说明：
+-inform PEM|DER ：输入文件格式，DER或者PEM格式。DER格式采用ASN1的DER标准格式。一般用的多的都是PEM格式，就是base64编码格式。
+-outform DER|PEM ：输出文件格式，DER或者PEM格式。
+-in filename ：输入的密钥文件，默认为标准输入。如果密钥被加密，会提示输入一个密钥口令。
+-passin arg ：输入文件口令保护来源。
+-out filename ：输出文件，默认为标准输出。如果任何加密操作已经执行，会提示输入一个密钥值。输出的文件名字不能和输入的文件名一样。
+-passout arg ：输出文件口令保护来源。
+-topk8 ：通常的是输入一个pkcs8文件和传统的格式私钥文件将会被写出。设置了此选项后，位置转换过来：输入一个传统格式的私钥文件，输出一个PKCS#8格式的文件。
+-noiter ：MAC保护计算次数为1。
+-nocrypt ：PKCS#8密钥产生或输入一般用一个适当地密钥来加密PKCS#8 EncryptedPrivateKeyInfo结构。设置了此选项后，一个不加密的PrivateKeyInfo结构将会被输出。这个选项一直不加密私钥文件，在绝对必要的时候才能够使用。某些软件例如一些JAVA代码签名软件使用不加密的私钥文件。
+-nooct ：这个选项产生的RSA私钥文件是一个坏的格式，一些软件将会使用。特别的是，私钥文件必须附上一个八位组字符串，但是一些软件仅仅包含本身的结构体没有使八位组字符串所环绕。不采用八位组表示私钥。
+-embed ：这个选项产生的RSA私钥文件是一个坏的格式。在私钥结构体中采用嵌入式DSA参数格式。在这个表单中，八位组字符串包含了ASN1 SEQUENCE中的两种结构：一个SEQUENCE包含了密钥参数，一个ASN1 INTEGER包含私钥值。
+-nsdb ：这个选项产生的RSA私钥文件是一个坏的格式并兼容了Netscape私钥文件数据库。采用NetscapeDB的DSA格式。
+-v2 alg ：采用PKCS#5 v2.0，并指定加密算法，默认的是PKCS#8私钥文件被叫做B<pbeWithMD5AndDES-CBC>（该算法用56字节的DES加密但是在PKCS#5 v1.5中有更加强壮的加密算法）的加密算法用口令进行加密。用B<-v2>选项，PKCS#5 v2.0相关的算法将会被使用，可以是des3（168字节）和rc2（128字节），推荐des3。
+-v1 alg ：采用PKCS#5 v1.5或pkcs12，并指定加密算法。
+ -engine id ：指定硬件引擎。
+```
+**然后用rsautl子命令-sign生成签名，-verify验证**
+
+```bash
+/*提取PCKS8格式的私钥*/
+sunway@sunwayVM:~$ openssl pkcs8 -topk8 -in RSA.pem -passin pass:123456 -out pri.pem -nocrypt
+/*使用私钥生成签名*/
+sunway@sunwayVM:~$ openssl rsautl -sign -in plain.txt -inkey pri.pem  -out sign.txt
+/*使用公钥对签名进行验证*/
+sunway@sunwayVM:~$ openssl rsautl -verify -in sign.txt -inkey pub.pem -pubin -out replain.txt
+/*查看公钥验证签名解密的内容*/
+sunway@sunwayVM:~$ xxd replain.txt
+0000000: 3132 3334 3536 3738 3920 6865 6c6c 6f20  123456789 hello
+0000010: 776f 726c 6421 0a                        world!.
+/*查看原内容*/
+sunway@sunwayVM:~$ xxd plain.txt
+0000000: 3132 3334 3536 3738 3920 6865 6c6c 6f20  123456789 hello
+0000010: 776f 726c 6421 0a                        world!.
+/*用默认的rsa生成的pkcs1格式私钥生成签名*/
+sunway@sunwayVM:~$ openssl rsautl -sign -in plain.txt -inkey RSA.pem -passin pass:123456  -out sign1.txt
+/*用公钥验证签名*/
+sunway@sunwayVM:~$ openssl rsautl -verify -in sign1.txt -inkey pub.pem  -pubin -out replain1.txt
+/*查看解密内容*/
+sunway@sunwayVM:~$ xxd replain1.txt
+0000000: 3132 3334 3536 3738 3920 6865 6c6c 6f20  123456789 hello
+0000010: 776f 726c 6421 0a                        world!.
+
+```
+
+# 数字证书
+  为了确保拿到的服务器公钥确实是正确的服务器的公钥，即有人将其他的服务器的公钥给了客户端，使客户端误以为自己在跟正确的服务器进行交互。（攻击者可以在代理服务器层拦截客户端的请求，再重定向到自己的服务器）
+这时候需要一个权威的第三方机构（CA）确认这一个公钥确实是真实的服务器的公钥，服务器将自己的公钥和一些私人信息发给 CA，CA 用自己的私钥将这些数据加密之后也就是数字签名，这样的签名结果称为数字证书（SSL证书）， 数字证书遵循X509标准。
+当服务器向客户端发送数据的时候，还附带上从 CA 下载到本地的证书，客户端拿到证书以后使用CA的公钥进行解密，确认服务器的公钥无误，最后用服务器的公钥解密。
+
+
+
+### 生成私钥
+
+```bash
+/*生成私钥*/
+sunway@sunwayVM:~$ openssl genrsa -des3 -passout pass:123456 -out private.key
+Generating RSA private key, 2048 bit long modulus
+......+++
+..............................................................+++
+e is 65537 (0x10001)
+/*查看私钥信息*/
+sunway@sunwayVM:~$ openssl rsa -noout -passin pass:123456 -text -in private.key
+
+```
+### 证书请求
+
+这个命令将会生成一个证书请求，当然，用到了前面生成的密钥private.key文件 这里将生成一个新的文件cert.csr，即一个证书请求文件，你可以拿着这个文件去数字证书颁发机构（即CA）申请一个数字证书。CA会给你一个新的文件cacert.pem，那才是包含公钥给对方用的数字证书。
+
+```bash
+openssl req -new -key private.key -out cert.csr (-config openssl.cnf
+)openssl req -new -nodes -key private.key -out cert.csr (-config openssl.cnf)
+```
+### 查看证书请求
+
+```bash
+openssl req -noout -text -in cert.csr
+```
+
+
+### 如果是自己测试使用，加上-x509生成自签名证书
+
+```bash
+/*自签名证书，用于自己测试，不需要CA签发*/
+sunway@sunwayVM:~$ openssl req -new -x509 -key private.key -passin pass:123456 -out cacert.pem -days 1095
+/*查看证书信息*/
+sunway@sunwayVM:~$ openssl x509 -noout -text -in cacert.pem
+```
+**自签是用自己的私钥给证书签名，有了private.key和cacert.pem文件后就可以在自己的程序中使用了，比如做一个加密通讯的服务器。**
+
+```bash
+/*从证书中提取公钥*/
+sunway@sunwayVM:~$ openssl x509 -in cacert.pem -pubkey >> public.key
+/*创建文件*/
+sunway@sunwayVM:~$ echo "Hello 2020">plain.txt
+/*采用私钥加密*/
+sunway@sunwayVM:~$ openssl rsautl -sign -in plain.txt -inkey private.key -passin pass:123456  -out sign.txt
+/*用提取出来的公钥解密*/
+sunway@sunwayVM:~$  openssl rsautl -verify -in sign.txt -inkey public.key  -pubin -out replain.txt
+/*查看原文件内容*/
+sunway@sunwayVM:~$ xxd plain.txt
+0000000: 4865 6c6c 6f20 3230 3230 0a              Hello 2020.
+/*查看解密后文件内容*/
+sunway@sunwayVM:~$ xxd replain.txt
+0000000: 4865 6c6c 6f20 3230 3230 0a              Hello 2020.
+
+```

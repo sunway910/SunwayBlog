@@ -1,0 +1,81 @@
+---
+title: Convert Image File Type
+date: '2023-06-06'
+tags: ['Tech', 'CSP']
+draft: false
+summary: 镜像类型转换
+---
+
+<TOCInline toc={props.toc}/>
+
+## Introduction
+
+如何将虚拟机镜像文件从一种格式转换为另一种格式，比如 `VMware` 的 `VMDK` 格式转换为 `QCOW2` 格式。
+
+
+## 1 Create VM
+
+使用 `ISO` 文件在 `VMware` 中创建新虚拟机。分区磁盘等配置保持默认即可。创建完成后，关闭虚拟机。
+
+## 2 Clone VM
+
+1. 右键点击虚拟机 -> 管理 -> 克隆
+
+2. 按照默认选项进行操作直至完成
+
+![clone-vm](/static/images/ChangeImageFileType/clone-vm.png)
+
+
+## 3 Merge VMDK Files
+
+![cd-vmare-dir](/static/images/ChangeImageFileType/cd-vmare-dir.png)
+
+1. 在命令提示符(`CMD`)中导航到`VMware`安装目录：
+```bash
+cd C:\Program Files (x86)\VMware\VMware Workstation
+
+# 执行 vmware-vdiskmanager.exe 命令将多个vmdk文件分片合成为1个vmdk文件
+
+vmware-vdiskmanager.exe -r "C:\Users\Administrator\Documents\Virtual Machines\CentOS_7_64_clone\CentOS_7_64 位-cl1.vmdk" -t 0 "C:\Users\Administrator\Documents\Virtual Machines\CentOS_7_64_clone\summary.vmdk"
+```
+
+![clone-result](/static/images/ChangeImageFileType/clone-result.png)
+
+## 4 Install qemu-img
+
+[Install](https://qemu.weilnetz.de/)
+
+`qemu-img`支持以下镜像格式的转换：
+
+- 1：`RAW、QCOW2、QCOW1、VMDK、VDI、VHD（vpc）、VHDX`或`QED`格式的镜像转换为`VHD`格式
+- 2：`RAW`和`VHD`格式的互相转换
+
+
+以阿里云为例，阿里云支持的镜像类型
+
+![alicloud-support-image-type](/static/images/ChangeImageFileType/alicloud-support-image-type.png)
+
+
+
+
+## 5 Convert VMDK to QCOW2
+
+
+- ` -f：参数值为源镜像文件的格式`
+- ` -O：参数值分别为目标镜像格式、源镜像文件名称和目标文件名称`
+
+```bash
+# set environment variable fi rst
+qemu-img convert -c -f vmdk -O qcow2 summary.vmdk centos7_custom.qcow2
+```
+
+## 6 Create Custom Image
+
+阿里云控制台启用`OSS`服务，并创建`Buket`，将本地镜像存入`Buket`（大于`5G`的镜像需要`API`分片导入）
+
+通过云服务器`ECS`控制台的导入镜像功能，将`OSS`中的镜像导入
+
+
+## 7 Use Custom Image
+
+![use-custom-image-create-ecs](/static/images/ChangeImageFileType/use-custom-image-create-ecs.png)

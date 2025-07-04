@@ -1,0 +1,227 @@
+---
+title: SSL VPN
+date: '2023-06-13'
+tags: ['Tech', 'Network']
+draft: false
+summary: SSL VPN with Fortigate
+---
+
+<TOCInline toc={props.toc}/>
+
+
+
+# 1 SSL-VPN Intro
+
+**SSL-VPN支持将本地客户端远程接入 VPC/机房内网 ，使客户端可以安全地访问内网中部署的应用或服务器。**
+
+`SSL-VPN`是在 **会话层** 通过使用`HTTPS`的方式实现的，而`IPsec-VPN`是在 **网络层** 实现的，能够完成传输层`TCP`和`UDP`的加密和隧道传输处理
+
+相比`IPsec-VPN`，`SSL-VPN`数据吞吐量较低，但其不受限于`MTU`，也不受操作系统和`NIC`网卡驱动的限制
+
+![AliCloud-VPN-Use](/static/images/SSLVPN/AliCloud-VPN-Use.png)
+
+**应用场景：如公司员工通过`SSL-VPN`：连接公司内网实现远程办公/访问内网服务器实现本地运维等**
+
+---
+
+# 2 Fortigate 配置SSL-VPN
+
+## 2.1 SSL-VPN Settings Demo
+
+`port1`：有`公网IP`的网卡，即`WAN口` (`Fortigate`上的 1 个物理端口对应服务器上的一张网卡)
+
+通常 `Fortigate` 至少会有两张网卡，一张主网卡有`公网IP`对应`WAN口 Port1`，一张辅助网卡只有内网·对应`LAN口 Port2`
+
+主网卡即用于访问外部互联网，辅助网卡一般用于`VPC`内网互联
+
+![SSL-VPN-Settings](/static/images/SSLVPN/SSL-VPN-Settings.png)
+
+## 2.2 User Group Setting
+
+### 2.2.1 create user group
+
+![User-Group-Settings](/static/images/SSLVPN/User-Group-Settings.png)
+
+
+------------
+
+少量用户可以通过手动添加用户进入用户组， 大量用户则需要通过脚本自动化导入
+
+**查看 `Fortigate` 上 `SSL-VPN` 统计信息：`diagnose vpn ssl statistics`**
+
+![ssl-vpn-maxconn](/static/images/SSLVPN/ssl-vpn-maxconn.png)
+
+**这里显示最多 5 个用户 68 个连接其实是错的，不知道官方提供这个这个命令的作用**
+
+---
+
+**根据 forti 工单回复如下:**
+
+```
+You can look up limits in the Maximum Values list, which nowadays is interactive:
+
+https://docs.fortinet.com/max-value-table
+
+For example, a VM0 has a max. number of interfaces of 4K, and a max. no. of IPsec tunnels of 2000.
+For This case , a MSL has a max. number of interfaces of 16K, and a max. no. of IPsec tunnels of 40K
+
+Depending on your VM resources, you might exhaust your cpu/ram/bandwidth way before maxing out the total number of allowed ipsec tunnels.
+```
+
+
+[限制SSL-VPN user数量参考](https://community.fortinet.com/t5/FortiGate/Technical-Tip-Limiting-the-maximum-number-of-SSL-VPN-users-and/ta-p/194563 "限制SSL-VPN user")
+
+
+------------
+
+### 2.2.2 通过脚本导入大量SSL-VPN用户
+
+* Reference :[命令行脚本批量转换工具说明](https://handbook.fortinet.com.cn/%E9%99%84%E4%BB%B6/%E5%91%BD%E4%BB%A4%E8%A1%8C%E8%84%9A%E6%9C%AC%E6%89%B9%E9%87%8F%E8%BD%AC%E6%8D%A2%E5%B7%A5%E5%85%B7%E8%AF%B4%E6%98%8E.html "命令行脚本批量转换工具说明")
+
+script as down below:
+
+```bash
+config user local
+    edit "<user1_name>"
+        set type password
+        set passwd <user1_pwd>
+    next
+	edit "<user2_name>"
+        set type password
+        set passwd <user2_pwd>
+    next
+	.
+	.
+	.
+end
+
+config user group
+    edit "SSL_VPN_GROUP"
+        set member "<user1_name>,<user2_name>......."
+    next
+end
+```
+
+
+**Step3**: 通过 `Scripts` 功能上传并运行脚本
+![run-script](/static/images/SSLVPN/run-script.png)
+
+
+```python
+import re
+
+def write_user(file_path, pair_list) -> None:
+    """
+    写入配置文件。
+    Args:
+      file_path: 配置文件路径
+      pair_list: 用户密码列表
+    """
+
+    with open(file_path, "w") as f:
+        f.write("config user local\n")
+        for pair in pair_list:
+            f.write("    edit \"{}""\"\n".format(pair['username']))
+            f.write("        set type password\n")
+            f.write("        set passwd {}\n".format(pair['password']))
+            f.write("    next\n")
+        f.write("end\n")
+
+
+def write_user_group(file_path, pair_list) -> None:
+    """
+    写入配置文件。
+    Args:
+      file_path: 配置文件路径
+      pair_list: 用户密码列表
+    """
+    with open(file_path, "a") as f:
+        f.write("\nconfig user local\n")
+        f.write("    edit \"SSL_VPN_GROUP\"\n")
+        f.write("        set member ")
+        f.write("\"")
+        for i, pair in enumerate(pair_list):
+            f.write("{}".format(pair['username']))
+            if i != len(pair_list) - 1:
+                f.write(",")
+        f.write("\"")
+        f.write("\n    next\n")
+        f.write("end\n")
+
+
+def format_users(data_source_path) -> list:
+    """
+    Reads a text file and formats each line in the following pattern:
+
+    "username {password}"
+
+    Args:
+      data_source_path: The path to the origin data.
+
+    Returns:
+      username password KV list
+    """
+
+    with open(data_source_path, "r") as f:
+        pattern = r"\s+|,|;"  # 过滤其中的空格、逗号和分号
+        result = []
+        for line in f:
+            pair_map = {}
+            match = re.match(r"^(.+)+([\s*,;])+(.+)$", line)  # 两边是任意长度的字符串，中间是任意个空格 逗号或者分号
+            print("match", match)
+            if match:
+                pair_map['username'] = re.sub(pattern, "", str(match.groups()[0]))
+                pair_map['password'] = re.sub(pattern, "", str(match.groups()[1]))
+                result.append(pair_map)
+        print("result length: ", len(result))
+
+    return result
+
+
+if __name__ == "__main__":
+    read_path = "origin.txt"
+    res = format_users(read_path)
+    write_path = "result.txt"
+    write_user(write_path, res)
+    write_user_group(write_path, res)
+
+```
+
+
+```text
+# origin.txt
+sunway1, 123456
+sunway2, 123456
+sunway3, 123456
+sunway4, 123456
+sunway5, 123456
+```
+
+---
+
+## 2.3 Create FireWall Policy
+
+* 配置 `incoming interface` 为 `ssl-vpn tunnel`
+* 配置 `outgoing interface` 为 `port2`（`port2`是辅助网卡，用于内网互联）
+
+> Client ------>`SSL-VPN-Tunnel`-------> `(Fortigate WAN) port1`-------->`(Fortigate LAN) port2`-------> Internal Network
+
+![CreateFireWallPolicy](/static/images/SSLVPN/CreateFireWallPolicy.png)
+
+
+---
+
+
+## 2.4 Testing for Fortigate SSL-VPN
+
+* 访问 `Fortigate Internet ip:10443`, 通过`ssl vpn`中设置好的用户名/密码进行登录
+
+* 如果 `Fortigate` 部署在云服务上，则需要配置安全组放行，`Fortigate` 安全组一般情况下默认全部端口全部协议都放行
+
+![UseFortigateSSLVPN](/static/images/SSLVPN/UseFortigateSSLVPN.png)
+
+登录后可[下载](https://www.fortinet.com/support/product-downloads) `Forticlient` 至本地，使用之前配置的用户名密码连接即可
+
+> 如果想在登录`SSL-VPN`时校验更加安全的手机`mobile Token`: `forti token`，可以参考：[SSL VPN with FortiToken mobile push authentication](https://docs.fortinet.com/document/fortigate/7.2.4/administration-guide/183204 "SSL VPN with FortiToken mobile push authentication")
+
+------------

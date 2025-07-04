@@ -3,7 +3,7 @@ const siteMetadata = {
   title: 'Sunway Blog',
   author: 'Sunway',
   headerTitle: 'Sunway Blog',
-  description: 'Sunway Blog - Development & Operations Insights',
+  description: 'Sunway Blog - Life / Development / Operations',
   language: 'en-us',
   theme: 'system', // system, dark or light
   siteUrl: 'https://sunway.run',
@@ -23,7 +23,7 @@ const siteMetadata = {
   openGraph: {
     type: 'website',
     title: 'Sunway Blog - Web Development & SRE Insights',
-    description: '个人技术博客，分享关于开发、运维相关内容'
+    description: 'Sunway 个人博客，分享日常生活、开发、运维等相关内容'
   },
   analytics: {
     // If you want to use an analytics provider you have to add it to the

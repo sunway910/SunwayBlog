@@ -1,0 +1,434 @@
+---
+title: IPSec VPN
+date: '2023-06-19'
+tags: ['Tech', 'Network']
+draft: false
+summary: IPSec VPN With Fortigate
+---
+
+<TOCInline toc={props.toc}/>
+
+
+# 1 IPSec: Internet Protocol Security
+
+**Term | Explanation:**
+
+**SA**（ Security Association ）：IPSec 通信时建立的逻辑连接
+
+**ESP**（ Encapsulating Security ）：原始报文使用 DES/3DES/AES 中的任意一种算法进行加密，通过 HMAC 确定数据是否被篡改，使用的 IP 协议号是 50
+
+**AH**（ Authentication Header ）：根据 HMAC 信息确定报文是否被篡改的认证协议。使用的 IP 协议号是 51
+
+**IKE**（ Internet Key Exchange ）：IPSec 协议用来交换 key 信息的协议，也叫做 ISAKMP/Oakley 。在 ISAKMP 协议上实现 Oakley 的 key 交换过程。使用的是 UDP 端口号 500 。分为阶段一和阶段二进行处理
+
+**HMAC**（ Keyed-Hashing for Message Authentication code ）：用来验证信息是否被篡改的一种 MAC ，也就是消息认证码，通过散列函数与密钥信息的组合计算得出，其中散列函数使用的算法一般是 MD5 或 SHA-1
+
+**SPI**（ Security Pointer Index ）：表示 SA 的编号，32 比特。在对报文加密时，用这个值表示使用了什么加密算法和密钥信息
+
+**NAT traversal** ：通过 ESP 加密的报文，由于没有 TCP/UDP 头部，因此无法使用 NAPT 。可以使用 NAT traversal 技术，给 ESP 加密后的报文添加 UDP 头部，从而在 NAPT 环境下进行 IPSec 通信。一般使用 500 或 4500 的端口号
+
+**IPSec-VPN 连接**：在建立 IPSec 隧道时，发起协商的叫做发起方（ initiator ），另一方叫做应答方（ responder ）。发送方是最先发出通过 IPSec 隧道报文的设备
+
+**更新 key（ rekey ）** ：IPSec 隧道建立后，每过一段时间，或经过一定量的数据，就会进行 rekey 操作。VPN 设备有修改 rekey 时间的功能
+
+
+![SourceImgFromAliCloud](/static/images/IPSecVPN/AliCloud-VPN-Use.png)
+
+**IPSec-VPN 实现本地 IDC 和云上 VPC 互联**
+
+本地数据中心设备发送请求，到达本地机房网关，这时的报文还未加密，是明文状态。网关对报文进行加密，并添加 `ESP` 头部和在隧道中使用的 `IP` 头部（叫做外层 `IP` 地址），再通过 `IPSec` 隧道发送出去
+
+云上专有网络的网关通过 `IPSec` 隧道收到加密的报文，会检查 `ESP` 头部和 `AH` 头部。如果 `ESP` 序列号不正确，`VPN`网关就会认为是重放攻击，并输出错误信息，`SPI` 值不正确，会输出 `Bad SPI` 的错误通知信息
+
+如果加密报文正常，就进行解密操作，去除外部 `IP` 、`ESP` 、`AH` 等头部，并对原来 `IP` 头部的目的地址进行路由，从而到达`VPC`，反向同理
+
+------------
+
+
+
+# 2 Static Route IPSec-VPN Configuration
+
+**Fortigate支持如下的 `IPSec-VPN` 类型，一般选择 `Site-to-Site` 或者 `Dialup` 方式的连接**
+
+- **Site-to-Site**：即在`2个fortigate`之间建立`ipsec tunnel`进行连接
+- **Dial-UP**：即一端的`fortigate A`公网IP固定（EIP），另一端的 `fortigate B` 的IP动态变化，`fortigate B` 通过向 `fortigate A` 拨号来建立`IPSec tunnel`
+
+
+------------
+
+
+
+## 2.1 Site to Site Mode
+
+<span style={{ color: 'red' }}>1: 图中 port2 对应 lan口 ，port1 对应 wan口</span>
+
+![](/static/images/IPSecVPN/SitetoSite-ipsec.png)
+
+<span style={{ color: 'red' }}>2: 配置 Port2（LAN口） 到 Port1（WAN口）的 Policy，内网出公网的策略</span>
+
+![](/static/images/IPSecVPN/port2-port1-policy.png)
+
+<span style={{ color: 'red' }}>3: 配置 fortigate port2 到 IPSec tunnel 的 policy，我方到对方的策略</span>
+
+![](/static/images/IPSecVPN/port2-ipsec-tunnel-policy.png)
+
+<span style={{ color: 'red' }}>4: 配置 IPSec tunnel 到 fortigate port2 的 policy，对方到我方的策略</span>
+
+![](/static/images/IPSecVPN/ipsec-tunnel-port2.png)
+
+<span style={{ color: 'red' }}>5: 配置 IPSec tunnel 到目标子网的静态路由，对方内网的网段</span>
+
+![](/static/images/IPSecVPN/ipsec-static-route.png)
+
+------------
+
+
+## 2.2 Dial up Mode
+**图中 port2 对应 lan口 ，port1 对应 wan口**
+![](/static/images/IPSecVPN/dialup-ipsec.png)
+
+路由配置与`site-to-site`一致
+
+
+------------
+
+
+解释一下图中的`phase 1`和`phase 2`
+
+> 阶段1：在 IPSec 通信中，为了建立加密隧道的 SA ，需要在设备之间使用 IKE 协议完成密钥的交换。为了提高安全性，IKE 协议分为阶段 1 和阶段 2 两个部分。
+IKE 阶段 1 是完成鉴别和保护 SA 通信的双方，同时生成阶段 2 需要的公有密钥，建立 IKE SA 等工作。
+认证方式可以是证书或者预共享密钥，演示采用的共享密钥，商量好的加密算法为AES256，解密算法为SHA256，IKE ID选的IP/FQDN中的第2种:FQDN
+DH是Diffie-Hellman Group,数字越大表示Oakley密钥交换时使用的公钥强度越强
+
+------------
+
+
+> 阶段2：IKE 阶段 2 负责生成 IPSec 通信使用的密钥，并建立 IPSec SA
+
+------------
+
+# 3 Dynamic Route IPSec-VPN Configuration
+
+**[BGP](https://www.cloudflare.com/learning/security/glossary/what-is-bgp/)是一种基于`TCP`协议的动态路由协议，主要应用于不同自治系统间交换路由信息和网络可达信息。`BGP` 具有自动宣告云上和云下的动态路由，并具备自动处理路由冲突机制的能力**
+
+<span style={{ color: 'red'}}>静态路由配置方便，对系统要求低，适用于拓扑结构简单并且稳定的小型网络。缺点是不能自动适应网络拓扑的变化，需要人工干预</span>
+
+<span style={{ color: 'red' }}>动态路由协议有自己的路由算法，能够自动适应网络拓扑的变化，减少人工出错的概率，适用于具有一定数量三层设备的网络。缺点是配置对用户要求比较高，对系统的要求高于静态路由，并将占用一定的网络资源和系统资源</span>
+
+
+>就像开发一样，很多代码我们都需要抽象出来，让代码更加灵活可用，在新增或修改需求的时候做到不修改代码或者少修改代码，让代码具有更好的泛化能力；
+同理，静态路由的问题就是当VPN两端有一端的网络拓扑发生变化时，我们需要去手动去修改这些网络配置，配置出错就可能导致严重的网路问题，这时，就算系统再怎么高可用也将变得不可用
+
+---
+
+#以下以 `Fortigate` 配置动态路由为[例](https://community.fortinet.com/t5/FortiGate/Technical-Note-Dynamic-routing-BGP-over-IPsec-tunnel/ta-p/193955)
+
+```
+config system interface
+    edit "port1"
+        set vdom "root"
+        set mode dhcp
+        set allowaccess ping https ssh http fgfm
+        set type physical
+        set snmp-index 1
+    next
+    edit "port2"
+        set vdom "root"
+        set ip 10.210.0.1 255.255.248.0
+        set allowaccess ping https ssh http fgfm
+        set type physical
+        set snmp-index 6
+        set secondary-IP enable
+        config secondaryip
+            edit 1
+                set ip 10.210.8.1 255.255.248.0
+                set allowaccess ping
+            next
+        end
+    next
+# `100.127.188.6` `100.127.255.10` `100.127.255.14` 是云上Fortigate的本段BGP地址，属于 IPSec-VPN 隧道网段内的一个地址
+# 由于IPSec-VPN建立时指定的隧道网段Subnet为 0.0.0.0/0 ，实现云下和云上完全互通，所以这个IP是随意的，不要和现有的网络环境有冲突即可
+    edit "VPN_TO_GZ"
+        set vdom "root"
+        set ip 100.127.188.6 255.255.255.255
+        set allowaccess ping
+        set type tunnel
+        set tcp-mss 1379
+        set remote-ip 100.127.188.5 255.255.255.255
+        set snmp-index 7
+        set mtu-override enable
+        set mtu 1427
+        set interface "port1"
+    next
+    edit "VPN_TO_HK"
+        set vdom "root"
+        set ip 100.127.255.10 255.255.255.255
+        set allowaccess ping
+        set type tunnel
+        set tcp-mss 1379
+        set remote-ip 100.127.255.9 255.255.255.255
+        set snmp-index 8
+        set mtu-override enable
+        set mtu 1427
+        set interface "port1"
+    next
+    edit "VPN_TO_AIA"
+        set vdom "root"
+        set ip 100.127.255.14 255.255.255.255
+        set allowaccess ping
+        set type tunnel
+        set tcp-mss 1379
+        set remote-ip 100.127.255.13 255.255.255.255
+        set snmp-index 9
+        set mtu-override enable
+        set mtu 1427
+        set interface "port1"
+    next
+end
+
+
+# 这个neighbor的IP 100.127.188.5 100.127.255.9 100.127.255.13 是 IPSec-VPN 隧道网段内的一个地址
+# 由于IPSec-VPN建立时指定的隧道网段Subnet为0.0.0.0/0，实现云下和云上完全互通，所以这个IP是随意的，不要和现有的网络环境有冲突即可
+config router bgp
+    set as 65400
+    set router-id 47.106.154.233
+    set distance-internal 105
+    config neighbor
+        edit "100.127.188.5"
+            set bfd enable
+            set next-hop-self enable
+            set soft-reconfiguration enable
+            set prefix-list-in "PL-ALIYUN_IN"
+            set prefix-list-out "PL-ALIYUN_OUT_TO_GZ"
+            set remote-as 65400
+        next
+        edit "100.127.255.9"
+            set bfd enable
+            set next-hop-self enable
+            set soft-reconfiguration enable
+            set prefix-list-in "PL-ALIYUN_IN"
+            set prefix-list-out "PL-ALIYUN_OUT_TO_HK"
+            set remote-as 65400
+        next
+        edit "100.127.255.13"
+            set bfd enable
+            set next-hop-self enable
+            set soft-reconfiguration enable
+            set prefix-list-in "PL-ALIYUN_IN"
+            set prefix-list-out "PL-ALIYUN_OUT_TO_AIA"
+            set remote-as 65400
+        next
+    end
+    config network
+        edit 1
+            set prefix 10.210.0.0 255.255.248.0
+        next
+        edit 2
+            set prefix 10.210.8.0 255.255.248.0
+        next
+    end
+    config redistribute "connected"
+    end
+    config redistribute "rip"
+    end
+    config redistribute "ospf"
+    end
+    config redistribute "static"
+    end
+    config redistribute "isis"
+    end
+    config redistribute6 "connected"
+    end
+    config redistribute6 "rip"
+    end
+    config redistribute6 "ospf"
+    end
+    config redistribute6 "static"
+    end
+    config redistribute6 "isis"
+    end
+end
+
+config router static
+    edit 4
+        set device "port1"
+        set dynamic-gateway enable
+    next
+    edit 998
+        set dst 10.210.0.0 255.255.248.0
+        set blackhole enable
+    next
+    edit 999
+        set dst 10.210.8.0 255.255.248.0
+        set blackhole enable
+    next
+end
+
+config firewall policy
+    edit 3
+        set name "to internet"
+        set uuid fae9e862-4711-51ee-7b6e-141e1cad7145
+        set srcintf "port2"
+        set dstintf "port1"
+        set action accept
+        set srcaddr "all"
+        set dstaddr "all"
+        set schedule "always"
+        set service "ALL"
+        set logtraffic all
+        set nat enable
+    next
+    edit 2
+        set name "POL-TO_GZ"
+        set uuid f5a7ba60-489b-51ee-dfce-9a91c4312215
+        set srcintf "port2"
+        set dstintf "VPN_TO_GZ"
+        set action accept
+        set srcaddr "all"
+        set dstaddr "all"
+        set schedule "always"
+        set service "ALL"
+        set logtraffic all
+    next
+    edit 4
+        set name "POL-TO_HK"
+        set uuid fcf181ac-489b-51ee-effd-988c9f16d191
+        set srcintf "port2"
+        set dstintf "VPN_TO_HK"
+        set action accept
+        set srcaddr "all"
+        set dstaddr "all"
+        set schedule "always"
+        set service "ALL"
+        set logtraffic all
+    next
+    edit 5
+        set name "POL-FROM_GZ"
+        set uuid 34f7577a-489c-51ee-14cd-81ee3b754aa8
+        set srcintf "VPN_TO_GZ"
+        set dstintf "port2"
+        set action accept
+        set srcaddr "all"
+        set dstaddr "all"
+        set schedule "always"
+        set service "ALL"
+        set logtraffic all
+    next
+    edit 6
+        set name "POL-FROM_HK"
+        set uuid 3ae2906e-489c-51ee-1ec4-792e441ac4ad
+        set srcintf "VPN_TO_HK"
+        set dstintf "port2"
+        set action accept
+        set srcaddr "all"
+        set dstaddr "all"
+        set schedule "always"
+        set service "ALL"
+        set logtraffic all
+    next
+    edit 7
+        set name "POL-TO_AIA"
+        set uuid db5e776e-48ca-51ee-db26-b113feb84c36
+        set srcintf "port2"
+        set dstintf "VPN_TO_AIA"
+        set action accept
+        set srcaddr "all"
+        set dstaddr "all"
+        set schedule "always"
+        set service "ALL"
+        set logtraffic all
+    next
+    edit 8
+        set name "POL-FROM_AIA"
+        set uuid db6009b2-48ca-51ee-9b25-feca7c9111cf
+        set srcintf "VPN_TO_AIA"
+        set dstintf "port2"
+        set action accept
+        set srcaddr "all"
+        set dstaddr "all"
+        set schedule "always"
+        set service "ALL"
+        set logtraffic all
+    next
+end
+
+#这里的remote-gw就是云下网关的公网IP
+
+config vpn ipsec phase1-interface
+    edit "VPN_TO_GZ"
+        set interface "port1"
+        set ike-version 2
+        set peertype any
+        set net-device disable
+        set proposal aes128-sha256
+        set localid "HCI_ALIYUN"
+        set dhgrp 14
+        set remote-gw x.x.x.x
+        set psksecret FortinetPasswordMask
+    next
+    edit "VPN_TO_HK"
+        set interface "port1"
+        set ike-version 2
+        set peertype any
+        set net-device disable
+        set proposal aes128-sha256
+        set localid "HCI_ALIYUN"
+        set dhgrp 14
+        set remote-gw x.x.x.x
+        set psksecret FortinetPasswordMask
+    next
+    edit "VPN_TO_AIA"
+        set interface "port1"
+        set ike-version 2
+        set peertype any
+        set net-device disable
+        set proposal aes128-sha256
+        set localid "HCI_ALIYUN"
+        set dhgrp 14
+        set remote-gw x.x.x.x
+        set psksecret FortinetPasswordMask
+    next
+end
+config vpn ipsec phase2-interface
+    edit "VPN_TO_GZ"
+        set phase1name "VPN_TO_GZ"
+        set proposal aes128-sha512
+        set dhgrp 14
+        set keylifeseconds 86400
+    next
+    edit "VPN_TO_HK"
+        set phase1name "VPN_TO_HK"
+        set proposal aes128-sha512
+        set dhgrp 14
+        set keylifeseconds 86400
+    next
+    edit "VPN_TO_AIA"
+        set phase1name "VPN_TO_AIA"
+        set proposal aes128-sha512
+        set dhgrp 14
+        set keylifeseconds 86400
+    next
+end
+```
+
+
+**使用 `BGP` 动态路由建立 `IPSec-VPN` 连接前，为避免本地数据中心网络路由震荡，请确保边界路由器和`VPN`网关配置的本地数据中心的自治系统号 `ASN` 一致，以上 `Fortigate` 配置的 `ASN` 都是 `65400`**
+
+同时，以上有一个细节就是隧道的`mtu`为 `1427`，当在网络传输的过程中，如果服务器发送了一个 `1500` 字节的包，就会造成网络包被丢弃，无法通讯，所以在一些极其特殊的情况下，明明代码没有问题，但网络就是不通的情况，因为数据包可能被线路中的一些路由设备丢弃了
+
+
+------------
+
+
+
+
+# 4 Conclusion
+
+`IPSec VPN` 一般用于连接云上与本地机房实现混合云部署，`IPSec VPN` 的速度会比 `SSL-VPN` 快
+
+一般情况下会有以下种架构：
+
+- 使用 1 条 `IPSec VPN tunnel` 实现云上云下互通，无高可用需求
+- 搭建多条 `IPSec VPN tunnel` 实现高可用
+- `专线` 为主，`IPSec VPN` 为辅实现高可用
+- `专线` 为主，`备用专线` 为辅

@@ -1,0 +1,337 @@
+---
+title: Zalando Postgres
+date: '2025-07-09'
+tags: ['Tech', 'Kubernetes', 'Postgres', 'db']
+draft: false
+summary: Zalando Postgres Cluster Deployment
+---
+
+<TOCInline toc={props.toc}/>
+
+A comprehensive YAML template guide for deploying PostgreSQL clusters on Kubernetes using the Zalando Postgres Operator.
+
+## Introduction
+
+The Zalando Postgres Operator is a powerful tool for managing PostgreSQL clusters on Kubernetes. It provides high-availability, scalability, and automated operations including backups, failovers, and monitoring. This guide explores the deployment options and configuration best practices.
+
+## How to Install
+
+First, you'll need to install the Postgres Operator using Helm. The following commands customize the operator configuration to improve high-availability through pod anti-affinity settings.
+
+```shell
+helm repo add postgres-operator-charts https://opensource.zalando.com/postgres-operator/charts/postgres-operator
+
+helm install postgres-operator postgres-operator-charts/postgres-operator -n default \
+--set configKubernetes.enable_pod_antiaffinity=true \
+--set configKubernetes.pod_antiaffinity_preferred_during_scheduling=true \
+--set configKubernetes.pod_antiaffinity_topology_key="topology.ebs.csi.aws.com/zone"
+
+# Install the optional UI component for easier management
+helm repo add postgres-operator-ui-charts https://opensource.zalando.com/postgres-operator/charts/postgres-operator-ui
+helm install postgres-operator-ui postgres-operator-ui-charts/postgres-operator-ui -n default
+
+# Retrieve the auto-generated password for the PostgreSQL superuser
+kubectl get secret -n deapp sunway.sunway-postgres.credentials.postgresql.acid.zalan.do -o 'jsonpath={.data.password}' | base64 -d
+```
+
+
+
+## Deployment Options
+
+### Cluster Only
+
+This configuration deploys a PostgreSQL cluster without integrated monitoring. You'll need to deploy exporters separately if monitoring is required.
+
+```yaml
+apiVersion: "acid.zalan.do/v1"
+kind: postgresql
+metadata:
+  name: sunway-postgres # Name of the PostgreSQL cluster
+  namespace: default # Namespace where the cluster will be created
+spec:
+  teamId: "sunway" # Team ID that owns this cluster
+  numberOfInstances: 3 # Number of instances in the cluster (PostgreSQL Pods)
+  users:
+    # database owner with full privileges
+    sunway:
+      - superuser # User sunway, with superuser permissions
+    # read only user for reporting and read-only operations
+#    readonly:
+#      - nologin # Prevent direct login via password
+#      - nocreatedb # Cannot create databases
+#      - nocreaterole # Cannot create roles
+  #databases: name -> owner
+  databases:
+    sunway: sunway # Create a database named sunway, owned by user sunway
+  postgresql:
+    version: "17" # PostgreSQL version
+    parameters:
+      port: "5432" # Port where the database will be listening
+      max_connections: "200" # Sets the maximum number of concurrent connections to the database server
+      password_encryption: scram-sha-256 # Method to use to encrypt the password (more secure than MD5)
+
+      # Memory settings for performance
+      shared_buffers: "4096MB" # Amount of memory the database server uses for shared memory buffers
+      work_mem: "128MB" # Memory used for sort operations and hash tables
+      maintenance_work_mem: "512MB" # Memory used for maintenance operations like VACUUM
+      effective_cache_size: "12GB" # Estimate of how much memory is available for disk caching
+
+      # Write-Ahead Log (WAL) settings
+      wal_buffers: "16MB" # Amount of memory used in shared memory for WAL data
+      wal_level: "logical" # Enables logical decoding for replication
+      checkpoint_timeout: "15min" # Maximum time between automatic WAL checkpoints
+      checkpoint_completion_target: "0.9" # Target of checkpoint completion, as a fraction of total time
+      max_wal_size: "8GB" # Maximum size of WAL before checkpoint is forced
+      min_wal_size: "2GB" # Minimum size of WAL to recycle WAL segment files
+
+      # Query planner settings
+      random_page_cost: "1.1" # Cost estimate for a non-sequentially-fetched disk page (lower for SSD)
+      effective_io_concurrency: "200" # Number of concurrent disk I/O operations
+      default_statistics_target: "100" # Default statistics target for table columns
+
+      # Parallelism settings
+      max_worker_processes: "8" # Maximum number of background worker processes
+      max_parallel_workers_per_gather: "4" # Maximum workers for parallel queries
+      max_parallel_workers: "8" # Maximum workers for parallel operations
+
+      # Autovacuum settings
+      autovacuum: "on" # Enable autovacuum subprocess
+      autovacuum_max_workers: "3" # Maximum number of autovacuum worker processes
+      autovacuum_vacuum_scale_factor: "0.1" # Fraction of table size before vacuum
+
+      # Logging settings
+      log_statement: "mod" # Log all modification statements
+      log_min_duration_statement: "5000" # Record slow log for queries greater than 5s
+      log_checkpoints: "on" # Log each checkpoint
+      log_lock_waits: "on" # Log long lock waits
+      log_temp_files: "0" # Log all temp file usage
+      log_autovacuum_min_duration: "1000" # Log autovacuum operations running longer than 1s
+      log_connections: "on" # Log each client connection
+      log_disconnections: "on" # Log end of session including duration
+      logging_collector: "on" # Enable capturing log files as files
+      log_filename: 'postgresql-%Y-%m-%d_%H%M%S.log' # Log filename format
+      log_rotation_age: "1d" # Rotate logs after 1 day
+      log_rotation_size: "128MB" # Rotate logs after 128MB
+  patroni:
+    pg_hba:
+      # Host-based authentication configuration
+      # 10.0.0.0/8 means can scrape postgres metrics without ssl in private network, it can be more strict
+      - local     all          all                        trust # Local socket connections trusted
+      - host      all          all       10.0.0.0/8       trust # Internal network connections trusted
+      - hostssl   all          +zalandos 127.0.0.1/32     pam # SSL connections from zalandos users on localhost use PAM
+      - host      all          all       127.0.0.1/32     md5 # Local connections require md5 password
+      - hostssl   all          +zalandos ::1/128          pam # SSL connections from zalandos users on IPv6 localhost use PAM
+      - host      all          all       ::1/128          md5 # IPv6 local connections require md5 password
+      - local     replication  standby                    trust # Local replication connections trusted
+      - hostssl   replication  standby   all              md5 # SSL replication connections require md5 password
+      - hostnossl all          all       all              reject # Reject non-SSL connections
+      - hostssl   all          +zalandos all              pam # All other SSL connections from zalandos use PAM
+      - hostssl   all          all       all              md5 # All other SSL connections require md5 password
+  volume:
+    size: 50Gi # Size of the persistent storage
+    storageClass: ebs # Storage Class to use
+  enableShmVolume: true # Enable shared memory volume for better performance
+  podAnnotations:
+    cluster-autoscaler.kubernetes.io/safe-to-evict: "true" # Allow the pods to be evicted by cluster autoscaler
+  resources:
+    requests:
+      cpu: 10m # Minimum CPU request
+      memory: 200Mi # Minimum memory request
+    limits:
+      cpu: "4" # Maximum CPU limit
+      memory: 8Gi # Maximum memory limit
+  enableConnectionPooler: true # Enable connection pooler for connection management
+  enableReplicaConnectionPooler: true # Enable connection pooler for read replicas
+  connectionPooler:
+    # Connection pooler settings
+    numberOfInstances: 3 # Number of pooler instances to deploy
+    mode: "session" # Pooling mode: session, transaction, or statement
+    schema: "pooler" # Schema name for the pooler
+    user: "pooler" # User name for the pooler
+    maxDBConnections: 180 # Maximum database connections (leaving 20 for direct connections)
+    resources:
+      requests:
+        cpu: 100m # Minimum CPU request for pooler
+        memory: 512Mi # Minimum memory request for pooler
+      limits:
+        cpu: "4" # Maximum CPU limit for pooler
+        memory: 8Gi # Maximum memory limit for pooler
+```
+
+
+### Deploy with Prometheus Exporter Sidecar
+
+This enhanced configuration adds a PostgreSQL metrics exporter as a sidecar container, enabling Prometheus monitoring integration.
+
+```yaml
+apiVersion: "acid.zalan.do/v1"
+kind: postgresql
+metadata:
+  name: sunway-postgres # Name of the PostgreSQL cluster
+  namespace: default # Namespace where the cluster will be created
+spec:
+  teamId: "sunway" # Team ID that owns this cluster
+  numberOfInstances: 3 # Number of instances in the cluster (PostgreSQL Pods)
+  users:
+    # database owner with full privileges
+    sunway:
+      - superuser # User sunway, with superuser permissions
+    # read only user for reporting and read-only operations
+    readonly:
+      - nologin # Prevent direct login via password
+      - nocreatedb # Cannot create databases
+      - nocreaterole # Cannot create roles
+  #databases: name -> owner
+  databases:
+    sunway: sunway # Create a database named sunway, owned by user sunway
+  postgresql:
+    version: "17" # PostgreSQL version
+    parameters:
+      port: "5432" # Port where the database will be listening
+      max_connections: "200" # Sets the maximum number of concurrent connections to the database server
+      password_encryption: scram-sha-256 # Method to use to encrypt the password (more secure than MD5)
+
+      # Memory settings for performance
+      shared_buffers: "4096MB" # Amount of memory the database server uses for shared memory buffers
+      work_mem: "128MB" # Memory used for sort operations and hash tables
+      maintenance_work_mem: "512MB" # Memory used for maintenance operations like VACUUM
+      effective_cache_size: "12GB" # Estimate of how much memory is available for disk caching
+
+      # Write-Ahead Log (WAL) settings
+      wal_buffers: "16MB" # Amount of memory used in shared memory for WAL data
+      wal_level: "logical" # Enables logical decoding for replication
+      checkpoint_timeout: "15min" # Maximum time between automatic WAL checkpoints
+      checkpoint_completion_target: "0.9" # Target of checkpoint completion, as a fraction of total time
+      max_wal_size: "8GB" # Maximum size of WAL before checkpoint is forced
+      min_wal_size: "2GB" # Minimum size of WAL to recycle WAL segment files
+
+      # Query planner settings
+      random_page_cost: "1.1" # Cost estimate for a non-sequentially-fetched disk page (lower for SSD)
+      effective_io_concurrency: "200" # Number of concurrent disk I/O operations
+      default_statistics_target: "100" # Default statistics target for table columns
+
+      # Parallelism settings
+      max_worker_processes: "8" # Maximum number of background worker processes
+      max_parallel_workers_per_gather: "4" # Maximum workers for parallel queries
+      max_parallel_workers: "8" # Maximum workers for parallel operations
+
+      # Autovacuum settings
+      autovacuum: "on" # Enable autovacuum subprocess
+      autovacuum_max_workers: "3" # Maximum number of autovacuum worker processes
+      autovacuum_vacuum_scale_factor: "0.1" # Fraction of table size before vacuum
+
+      # Logging settings
+      log_statement: "mod" # Log all modification statements
+      log_min_duration_statement: "5000" # Record slow log for queries greater than 5s
+      log_checkpoints: "on" # Log each checkpoint
+      log_lock_waits: "on" # Log long lock waits
+      log_temp_files: "0" # Log all temp file usage
+      log_autovacuum_min_duration: "1000" # Log autovacuum operations running longer than 1s
+      log_connections: "on" # Log each client connection
+      log_disconnections: "on" # Log end of session including duration
+      logging_collector: "on" # Enable capturing log files as files
+      log_filename: 'postgresql-%Y-%m-%d_%H%M%S.log' # Log filename format
+      log_rotation_age: "1d" # Rotate logs after 1 day
+      log_rotation_size: "128MB" # Rotate logs after 128MB
+  volume:
+    size: 50Gi # Size of the persistent storage
+    storageClass: ebs # Storage Class to use
+  enableShmVolume: true # Enable shared memory volume for better performance
+  podAnnotations:
+    cluster-autoscaler.kubernetes.io/safe-to-evict: "true" # Allow the pods to be evicted by cluster autoscaler
+  resources:
+    requests:
+      cpu: 10m # Minimum CPU request
+      memory: 200Mi # Minimum memory request
+    limits:
+      cpu: "4" # Maximum CPU limit
+      memory: 8Gi # Maximum memory limit
+  enableConnectionPooler: true # Enable connection pooler for connection management
+  enableReplicaConnectionPooler: true # Enable connection pooler for read replicas
+  connectionPooler:
+    # Connection pooler settings
+    numberOfInstances: 3 # Number of pooler instances to deploy
+    mode: "session" # Pooling mode: session, transaction, or statement
+    schema: "pooler" # Schema name for the pooler
+    user: "pooler" # User name for the pooler
+    maxDBConnections: 180 # Maximum database connections (leaving 20 for direct connections)
+    resources:
+      requests:
+        cpu: 100m # Minimum CPU request for pooler
+        memory: 512Mi # Minimum memory request for pooler
+      limits:
+        cpu: "4" # Maximum CPU limit for pooler
+        memory: 8Gi # Maximum memory limit for pooler
+  sidecars:
+    - name: exporter
+      image: quay.io/prometheuscommunity/postgres-exporter:v0.14.0
+      args:
+        - --collector.stat_statements
+      ports:
+        - name: exporter
+          containerPort: 9187
+          protocol: TCP
+      resources:
+        limits:
+          cpu: 500m
+          memory: 512M
+        requests:
+          cpu: 50m
+          memory: 128M
+      env:
+        - name: "DATA_SOURCE_URI"
+          value: "localhost/postgres?sslmode=require"
+        - name: "DATA_SOURCE_USER"
+          value: "{{ .Values.app.pg.dbOwner }}"
+        - name: "DATA_SOURCE_PASS"
+          valueFrom:
+            secretKeyRef:
+              # {{ dbOwner }}.{{ resource.metadata.name }}.credentials.postgresql.acid.zalan.do
+              # use a postgres_exporter role instead of superuser is recommended
+              name: sunway.sunway-postgres.credentials.postgresql.acid.zalan.do
+              key: password
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  # {username}.{resource.metadata.name}.credentials.postgresql.acid.zalan.do
+  name: sunway.sunway-postgres.credentials.postgresql.acid.zalan.do
+  namespace: default
+type: Opaque
+data:
+  username: sunway
+  password: 123456
+```
+
+## Understanding the Generated Services
+
+After successful deployment, the Zalando Postgres Operator creates four distinct Kubernetes services to access your PostgreSQL cluster:
+
+```text
+sunway-postgres                    connect to master(r/w) node directly
+sunway-postgres-pooler             connect to master(r/w) node via pooler
+sunway-postgres-repl               connect to slave(r) node directly
+sunway-postgres-pooler-repl        connect to slave(r) node via pooler
+```
+
+## Advanced User Management
+
+If you need to create additional users after deployment, you can use standard PostgreSQL commands to create roles with appropriate permissions:
+
+```postgresql
+-- Create a read-only access role
+CREATE ROLE readaccess;
+GRANT CONNECT ON DATABASE decloud TO readaccess;
+GRANT USAGE ON SCHEMA public TO readaccess;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO readaccess;
+CREATE USER read_only_user WITH PASSWORD 'SecurePassword123';
+GRANT readaccess TO read_only_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO readaccess;
+
+-- Create a monitoring user for Prometheus
+CREATE USER postgres_exporter WITH PASSWORD 'SecurePassword123';
+GRANT CONNECT ON DATABASE decloud TO postgres_exporter;
+GRANT CONNECT ON DATABASE postgres TO postgres_exporter;
+GRANT USAGE ON SCHEMA public TO postgres_exporter;
+GRANT pg_monitor TO postgres_exporter;
+```

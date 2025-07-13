@@ -1,0 +1,48 @@
+---
+title: 2025 Weekly Report 28
+date: '2025-07-13'
+tags: ['Weekly Report']
+draft: false
+images: []
+summary: 2025第28周周报
+---
+
+<TOCInline toc={props.toc}/>
+
+## 工作
+
+### 1 Gemini-Cli
+
+用 `gemini-cli` 把 [mineradm](https://github.com/CESSProject/cess-multiminer-admin) 优化了， 全程就一个 `prompt:  @xxx.sh, please make this code more readable, stable and efficient`
+
+好的地方：
+
+- 在修改单个代码文件的时候（其中的代码没有与其他代码文件耦合时），效果非常不错，确实按照了 `Prompt` 来进行优化，也达到了对应的效果
+- 在代码规范和代码注释方面做的不错
+
+不好的地方：
+
+- 在 `@/directory` 想要修改一个整个目录时，让其同时修改5个文件时，直接把我的代码改得稀巴烂，最后还得我人工审查修复
+- 请求时各种 `request failed...`，要经常重试
+
+AI 真的越来越厉害了，前端后端客户端各种代码样样精通，但是它取代不了我，因为它干不了运维的`脏活累活`
+
+### 2 Devv Builder
+
+用 `Devv Builder` 10分钟生成了一个 `address converter` 的 `web page`，用来解决 `测试网/主网/EVM` 地址转换的问题
+
+![addr_converter](/static/images/2025-w28/addr_converter.png)
+![devvBuilder](/static/images/2025-w28/devvBuilder.png)
+
+## 生活
+
+- **1** 健身周报：一周5练，有氧为主，晚上总是饿的肚子同；这周练腿已经没有之前那种过激反应走不动路了，感觉已经适应之前的重量了
+- **2** 做菜周报：做了`干爆泥鳅`，泥鳅一下油锅就掉皮，导致粘锅，煎久了会烧黑，不敢煎太久，导致泥鳅不是很干香，不过味道还是不错
+- **3** 持有 `#APLD`/`#UNH`/`#AAPL`/`#Paypal`，女大成为第一个市值`4T`的公司，但我的账户在疯狂亏钱
+- **4** 一周看完了`鱿鱼游戏 1-3 季`，韩剧拍人性一直有一手
+- **5** 为了减脂，准备下周每天都吃红薯玉米土豆鸡蛋了（早上红薯，中午玉米土豆鸡蛋，晚上土豆牛肉饼）
+![sam](/static/images/2025-w28/sam.png)
+
+
+## 其他
+

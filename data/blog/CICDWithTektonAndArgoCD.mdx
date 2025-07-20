@@ -4,7 +4,7 @@ date: '2024-10-05'
 tags: ['Tech', 'CICD', 'Kubernetes']
 draft: false
 summary: 使用 Tekton & ArgoCD 实现 CICD
-lastmod: '2025-05-22'
+lastmod: '2025-07-20'
 ---
 
 <TOCInline toc={props.toc} indentDepth={3} fromHeading={1} toHeading={6}/>
@@ -484,7 +484,10 @@ spec:
 </details>
 
 ### 2.2 Task: Docker Build And Push
-Use command `kubectl apply -f task-kaniko.yaml` to add task: `kaniko-build-and-push`, you can also use command `tkn hub install task kaniko` to get task from hub and then customize the yaml file `kubectl get task kaniko -o yaml > task-kaniko.yaml` by yourself.
+
+#### 2.2.1 Kaniko (deprecated)
+
+Use command `kubectl apply -f task-kaniko.yaml` to add [kaniko task](https://github.com/GoogleContainerTools/kaniko): `kaniko-build-and-push`, you can also use command `tkn hub install task kaniko` to get task from hub and then customize the yaml file `kubectl get task kaniko -o yaml > task-kaniko.yaml` by yourself.
 
 <details>
     <summary style={{color: "red"}}>
@@ -560,6 +563,110 @@ spec:
         TZ='Asia/Hong_Kong' echo -n "$(date '+Date: %Y-%m-%d Time: %H:%M:%S')" > $(results.image-build-end-time.path)
         echo -n "yes" > $(results.done.path)
 ```
+
+</details>
+
+#### 2.2.2 Buildkit
+
+Use command `kubectl apply -f task-buildkit.yaml` to add [buildkit task](https://github.com/moby/buildkit)
+
+
+<details>
+    <summary style={{color: "red"}}>
+        task-buildkit.yaml
+    </summary>
+
+    ```yaml
+    apiVersion: tekton.dev/v1beta1
+    kind: Task
+    metadata:
+    name: buildkit-build-and-push
+    spec:
+    workspaces:
+    - name: source
+    description: Holds the context and Dockerfile
+    - name: dockerconfig
+    description: Includes a docker `config.json`
+    optional: true
+    mountPath: /root/.docker
+    params:
+    - name: IMAGE
+    description: Name (reference) of the image to build.
+    - name: DOCKERFILE
+    description: Path to the Dockerfile to build.
+    default: ./Dockerfile
+    - name: CONTEXT
+    description: The build context used by BuildKit.
+    default: ./
+    - name: PLATFORM
+    description: Target platform for the build amd64/arm64
+    default: linux/amd64
+    - name: EXTRA_ARGS
+    type: array
+    default: []
+    - name: BUILDER_IMAGE
+    description: The image on which builds will run
+    default: moby/buildkit:latest
+    results:
+    - name: IMAGE_DIGEST
+    description: Digest of the image just built.
+    - name: IMAGE_URL
+    description: URL of the image just built.
+    - name: image-build-end-time
+    description: "The end time of the build task"
+    - name: done
+    description: "Is the task done?"
+    steps:
+    - name: init-end-time
+    image: docker.io/library/bash:5.1.4@sha256:c523c636b722339f41b6a431b44588ab2f762c5de5ec3bd7964420ff982fb1d9
+    script: |
+    TZ='Asia/Shanghai' echo -n "$(date '+Date: %Y-%m-%d Time: %H:%M:%S')" > $(results.image-build-end-time.path)
+    - name: build-and-push
+    workingDir: $(workspaces.source.path)
+    image: $(params.BUILDER_IMAGE)
+    env:
+    - name: DOCKER_CONFIG
+    value: /root/.docker
+    script: |
+    echo "=== Starting build process ==="
+    echo "Workspace path: $(workspaces.source.path)"
+    echo "Target path: $(params.CONTEXT)"
+    echo "Dockerfile path: $(params.DOCKERFILE)"
+    echo "Target image: $(params.IMAGE)"
+    echo "Platform: $(params.PLATFORM)"
+    buildctl-daemonless.sh build \
+    --frontend=dockerfile.v0 \
+    --local=context=$(params.CONTEXT) \
+    --local=dockerfile=$(params.CONTEXT) \
+    --opt=filename=Dockerfile \
+    --opt=platform=$(params.PLATFORM) \
+    --output=type=image,name=$(params.IMAGE),push=true \
+    --export-cache=type=inline \
+    --import-cache=type=registry,ref=$(params.IMAGE)
+
+    securityContext:
+    runAsUser: 0
+    privileged: true
+
+    - name: get-digest
+    image: docker:23.0.1-cli
+    script: |
+    echo "=== Getting image digest ==="
+    docker buildx imagetools inspect $(params.IMAGE) | grep Digest | awk '{print $2}' | tee $(results.IMAGE_DIGEST.path)
+    echo "=== Digest saved ==="
+
+    - name: write-url
+    image: docker.io/library/bash:5.1.4@sha256:c523c636b722339f41b6a431b44588ab2f762c5de5ec3bd7964420ff982fb1d9
+    script: |
+    echo "=== Writing results ==="
+    export TZ=UTC-8
+    image="$(params.IMAGE)"
+    echo -n "${image}" | tee "$(results.IMAGE_URL.path)"
+    TZ='Asia/Shanghai' echo -n "$(date '+Date: %Y-%m-%d Time: %H:%M:%S')" > $(results.image-build-end-time.path)
+    echo "=== Results written ==="
+    echo -n "yes" > $(results.done.path)
+
+    ```
 
 </details>
 
@@ -1265,8 +1372,93 @@ spec:
 
 </details>
 
+### 2.10 Create Cronjob to clean pipelinerun (Optional)
 
-### 2.10 Create ArgoCD Notification (Optional)
+`kubectl get resourceQuota` get your cluster info and set this `cronjob` by yourself
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pipeline-cleaner
+  namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: pipeline-cleaner
+subjects:
+  - kind: ServiceAccount
+    name: pipeline-cleaner
+    namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pipeline-cleaner
+  namespace: default
+rules:
+  - apiGroups: ["tekton.dev"]
+    resources: ["pipelineruns"]
+    verbs: ["delete", "get", "watch", "list"]
+---
+kind: ServiceAccount
+apiVersion: v1
+metadata:
+  name: pipeline-cleaner
+  namespace: default
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pipeline-clean
+  namespace: default
+spec:
+  concurrencyPolicy: Allow
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: pipeline-clean
+        spec:
+          containers:
+            - command:
+                - sh
+                - '-c'
+                - >
+                  for pr in $(kubectl get pipelinerun -o jsonpath='{range.items[?(@.status.completionTime)]}{.metadata.name}{"\t"}{.status.completionTime}{"\n"}{end}' | awk -v date=$(date -d "7 days ago" +%Y-%m-%d) '$2 < date {print $1}'); do kubectl delete pipelinerun $pr; done
+              image: 'ghcr.io/ctron/kubectl:latest'
+              imagePullPolicy: Always
+              name: pipeline-clean
+              resources:
+                requests:
+                  cpu: 250m
+                  memory: 512Mi
+              terminationMessagePath: /dev/termination-log
+              terminationMessagePolicy: File
+              volumeMounts:
+                - mountPath: /etc/localtime
+                  name: volume-localtime
+          dnsPolicy: ClusterFirst
+          restartPolicy: Never
+          schedulerName: default-scheduler
+          securityContext: { }
+          serviceAccount: pipeline-cleaner
+          serviceAccountName: pipeline-cleaner
+          terminationGracePeriodSeconds: 30
+          volumes:
+            - hostPath:
+                path: /etc/localtime
+                type: ''
+              name: volume-localtime
+  schedule: 0 3 * * *
+  successfulJobsHistoryLimit: 3
+  suspend: false
+
+```
+
+### 2.11 Create ArgoCD Notification (Optional)
 use `kubectl apply -f ...` to update configmap: `argocd-notifications-cm`
 
 then: `kubectl rollout restart deployment argocd-notifications-controller -n argocd`

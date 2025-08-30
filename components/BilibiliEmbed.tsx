@@ -5,7 +5,7 @@ const BilibiliEmbed = ({src}) => (
         <iframe
             src={`${src}`}
             allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
+            allowFullScreen={true}
             title="Embedded Bilibili"
             width="560"
             height="315"

@@ -593,8 +593,8 @@ Use command `kubectl apply -f task-buildkit.yaml` to add [buildkit task](https:/
     - name: IMAGE
     description: Name (reference) of the image to build.
     - name: DOCKERFILE
-    description: Path to the Dockerfile to build.
-    default: ./Dockerfile
+    description: Dockerfile in which Directory Path.
+    default: ./
     - name: CONTEXT
     description: The build context used by BuildKit.
     default: ./
@@ -637,7 +637,7 @@ Use command `kubectl apply -f task-buildkit.yaml` to add [buildkit task](https:/
     buildctl-daemonless.sh build \
     --frontend=dockerfile.v0 \
     --local=context=$(params.CONTEXT) \
-    --local=dockerfile=$(params.CONTEXT) \
+    --local=dockerfile=$(params.DOCKERFILE) \
     --opt=filename=Dockerfile \
     --opt=platform=$(params.PLATFORM) \
     --output=type=image,name=$(params.IMAGE),push=true \

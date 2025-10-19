@@ -1,0 +1,167 @@
+---
+title: 2025 Weekly Report 41
+date: '2025-10-19'
+tags: ['Weekly Report']
+draft: false
+images: []
+summary: 2025第 41 周周报
+---
+
+<TOCInline toc={props.toc}/>
+
+## 工作
+
+- 1 Fuck OpenAI Again
+
+**付了钱后马上封号然后还不退钱，你知道我我要说什么.jpg**
+
+<div style={{display: "flex", justifyContent: "center"}}>
+    <img
+        style={{width: "500px"}}
+        src="/static/images/2025-w41/openai.jpg"
+    />
+</div>
+
+---
+
+- 2 Fuck Vietnam Hacker
+
+有个越南用户把公司产品当免费存储了，疯狂上传图片类型的小文件，1天就传了500GB
+
+- round 1：在网关上给上传接口配置限流，每个IP每分钟限制上传3次; 同时把日志里的IP搞了个 IP CIDR BlackList
+- round 2：被他轻松更换 IPV6 绕过，而且每个 IPV6 就上传 3 次
+- round 3：变更服务，配置上传队列，缓解并发上传
+- round 4：队列被单个用户塞满，影响到其他正常用户了，回滚
+- round 5：CF WAF 屏蔽所有越南IP才让他消停
+
+---
+
+- 3 JS SDK
+
+又迭代了一版SDK，优化了一点代码
+
+
+## 生活
+
+- **1** 健身周报：一周练5天；周一硬拉，竖脊肌痛到周五，周五练腿，估计要痛到下周了
+
+好久没有硬拉，竖脊肌太弱，突然来一次狠的，副作用很大，好几天腰都弯不下去
+
+---
+
+- **2** 做菜周报
+
+主要还是吃鱼，吃鱼，吃鱼，冰箱里全是鱼，根本吃不完
+
+**最近开始偷懒了，只想吃简单制作耗时短的预制菜了**
+
+这个 `牛肉牛杂煲` 挺好吃的
+
+<div style={{display: "flex", justifyContent: "center"}}>
+    <img
+        style={{width: "500px"}}
+        src="/static/images/2025-w41/huoguo.jpg"
+    />
+</div>
+
+
+---
+
+- **3** 持有 `#UNH`/`#Paypal`/`#BRKB`/`#CRWV`/`#RKLB`/`#APPL`
+
+**2周的猴市都没有怎么操作，看厨子来中国就买了 #APPL；买苹果手机，用苹果电脑，买苹果股票，享苹果人生**
+
+---
+
+给 `#PYPL` 最后一次机会，最近2个季度的财报都是暴跌，持股体验相当不好，10.28 财报最后的机会，如果还是跌的话割肉走人了
+
+> PayPal becomes the richest company on Earth with 300 trillion in assets... for about 20 minutes, until Paxos burns the $300 trillion PYUSD stablecoins it just minted.
+
+真是草台班子，300亿和300万亿0的长度都明显差4位，这都能输入错误的吗？
+
+<div style={{display: "flex", justifyContent: "center"}}>
+    <img
+        style={{width: "500px"}}
+        src="/static/images/2025-w41/pypl.png"
+    />
+</div>
+
+---
+
+- **4** Kaiju 8
+
+闲着无聊看完了动漫 `kaiju 8`，到周末已经对第一季没什么印象了，有点吃快餐的感觉
+
+**突然感觉自己有点跟不上现代动漫的风格了，我的记忆好像还停留在:**
+
+- 钢炼里把妻女练成合成兽的父亲
+- 全职猎人里会长展现人性极致之恶的贫者蔷薇
+- 火影里的迈特凯的夜凯
+- ...
+
+---
+
+- **5** web3
+
+`TG` 上买 `Buidlpad EU KYC` 被坑了 30U，`Google` 账号居然还绑定了一个陌生设备无法删除，再问卖家就装死了
+
+<div style={{display: "flex", justifyContent: "center"}}>
+    <img
+        style={{width: "500px"}}
+        src="/static/images/2025-w41/eu_kyc.png"
+    />
+</div>
+
+---
+
+PS：币安这个报错也太直白了，死去的八股文好像又袭击了我；最近 `BN Alpha` 根本抢不到，猪脚饭都吃不上了
+
+<div style={{display: "flex", justifyContent: "center"}}>
+    <img
+        style={{width: "500px"}}
+        src="/static/images/2025-w41/redis-lock.jpg"
+    />
+</div>
+
+
+- **6** 柴静采访
+
+说出这句话的时候，我感受到了坦然和释怀
+
+<div style={{display: "flex", justifyContent: "center"}}>
+    <img
+        style={{width: "500px"}}
+        src="/static/images/2025-w41/history.jpg"
+    />
+</div>
+
+<YoutubeEmbed embedId={"mxSLV51QhDw"}/>
+
+- **7** Cloudflare
+
+https://x.com/Cloudflare/status/1978190852078887182
+
+https://blog.cloudflare.com/unpacking-cloudflare-workers-cpu-performance-benchmarks
+
+```
+大部分性能差异是特定基准测试方法的产物
+
+Cloudflare 这篇关于 Cloudflare Workers CPU 性能基准测试的博客内容有点意思
+
+经过改进后，除了基于Next.js的测试外，CF 现在在每个基准测试案例中都与 Vercel 表现相当
+```
+
+## 其他
+
+又到一年 Q4，今年的 KPI 还没有完成。
+
+最近感觉自己越长大越麻木，曾经简简单单的快乐放到现在已经掀不起波澜
+
+S8 那年夺冠那晚的喊楼声还在耳边，S15 的直播已经是看都不想看。
+
+还有有什么能让人真正兴奋起来呢，大概只剩下买两张 SPY ODTE 后那种波动带来的多巴胺化学错觉
+
+
+<BilibiliEmbed src={"//player.bilibili.com/player.html?isOutside=true&aid=966265456&bvid=BV1qW4y1c7jA&cid=1408292537&p=1"} />
+
+> 不过是 梦寐以求，长大了 怎么你 不快乐

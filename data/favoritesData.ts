@@ -209,6 +209,18 @@ const favoritesData = [
                 href: 'https://txstc55.github.io/ugly-avatar/',
                 visit: 'Visit UglyAvatar'
             },
+            {
+                title: '推特视频下载',
+                description: `X video downloader`,
+                href: 'https://twitterxdownload.com/zh-CN',
+                visit: 'X Video Downloader'
+            },
+            {
+                title: 'Subtitle Extractor',
+                description: `先提取字幕阅读，再关闭字幕看片练英语`,
+                href: 'https://www.opensubtitles.org/',
+                visit: 'Subtitle Extractor'
+            },
         ],
         imgSrc: '',
         extensions: '/favorites/fun',

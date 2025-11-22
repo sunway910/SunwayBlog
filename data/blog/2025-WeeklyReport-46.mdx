@@ -1,0 +1,156 @@
+---
+title: 2025 Weekly Report 46
+date: '2025-11-22'
+tags: ['Weekly Report']
+draft: false
+images: []
+summary: 2025 第 46 周周报
+---
+
+<TOCInline toc={props.toc}/>
+
+## 其他
+
+本周大事件总结: `NVDA 财报` + `CF 宕机`
+
+<center >
+    <figure>
+        <img  style={{margin: "0 ", display: "inline-block "}} src="/static/images/2025-w46/nvdaEarning.jpg" width="350" />
+        <img  style={{margin: "0 ", display: "inline-block "}} src="/static/images/2025-w46/cfOutage.jpg" width="350"/>
+    </figure>
+</center>
+
+https://blog.cloudflare.com/18-november-2025-outage/
+
+这里只讲一下我对 `CF Outage` 的看法。这次故障对一些 `all in cloudflare` 的公司来说，影响非常大，对我们公司官网和一些其他业务造成了影响，但好在运气好，在 `Bot Management` 短暂恢复时间间隔内，我们通过 API 关闭了 `Load Balancing Proxy`，通过强制走 `no-proxy` 的`DNS`解析恢复了访问，宕机时间不到2个钟
+
+网上很多人开玩笑把问题扯到了 `rust unwrap()` 导致的 `panic` 上，其实我觉得更多问题出在了变更规范上，变更人在对 `ClickHouse DB` 进行变更时，不清楚这次变更的影响吗？变更后没有持续观察？流量跌零时没有联想到事故是因为自己的变更导致的吗？没做风险控制和灰度？难不成真的像网上的段子 `First day at Cloudflare, did a small update and took my afternoon off`
+
+`UTC 11:20` 出现问题到 `UTC 14:30` 才找到并解决了根本问题，花了接近 `3` 个钟，估计这个变更人员真的操作完后就去吃饭午休喝咖啡去了LOL
+
+---
+
+图片来源 https://www.reddit.com/r/ProgrammerHumor or https://x.com/PR0GRAMMERHUM0R
+
+<div style={{display: "flex", justifyContent: "center"}}>
+    <img
+        style={{width: "500px"}}
+        src="/static/images/2025-w46/world-arch.jpg"
+    />
+</div>
+
+这两年故障越来越多，几次大的故障如下
+
+- 2024 `CrowdStrike + Microsoft` windows server 蓝屏事件导致航班延误/医院信息系统瘫痪
+- 2025 `GCP` 宕机导致 `CF` 宕机，从而导致大规模连环故障
+- 2025 `AWS USE1` 因 `race condition` 导致 DNS 服务宕机
+- 2025 `CF Bot Management` 因 `ClickHouse` 变更导致宕机
+
+
+## 生活
+
+- **1** 健身周报：硬拉动作还是不太对，臀腿感觉没那么强烈，反而竖脊肌酸痛，一痛又是好几天
+
+
+---
+
+- **2** 做菜周报
+
+这个`蒜蓉排骨`真的非常好吃，下次继续做
+
+<div style={{display: "flex", justifyContent: "center"}}>
+    <img
+        style={{width: "500px"}}
+        src="/static/images/2025-w46/paigu.jpg"
+    />
+</div>
+
+---
+
+- **3** 持有 `#UNH`/`#BRKB`/`#RKLB`/`#APLD`/`#CRCL`
+
+- 终于把 `#Paypal` 割掉了，持仓体验极差，回报是一点没有
+- 账户新低了, `IBKR` 的账户已经开始亏本金了，今年白干；`LongBridge` 的账户只盈利一点
+- `70` 块买了 `20` 股 `#CRCL` 做个标记，高管和早期投资人抛售太多，先等等看
+
+**本来以为 `#NVDA` 财报拯救世界，结果盘前赚2K，睡醒亏3千，这个市场真有意思**
+
+<VideoEmbed
+    src="/static/images/2025-w46/nvda.mp4"
+    title="JensenHuang"
+    controls={true}
+/>
+
+---
+
+- **4** 日签
+
+买了`阪进东出`的机票，结果返程的直航机票被取消了，只能转机了
+
+<div style={{display: "flex", justifyContent: "center"}}>
+    <img
+        style={{width: "500px"}}
+        src="/static/images/2025-w46/trip.png"
+    />
+</div>
+
+PS: 日本央行大放水，`USD:JPY` 的汇率已经到了 `1：156`，在市场上亏的钱我必须要狠狠地消费来回点血
+
+---
+
+
+- **5** web3
+
+想抄底就有抄不完底，`BTC` 插针到 `8W` 出头了，已经逼近 `MSTR 74000$` 的持仓成本了，我只能继续买点了
+
+>已经是狂暴大熊市了，怎么推上的 `KOL` 发个 `CA` 还能有那么多韭菜往地址里打钱...，先不说这个合约有没有问题，你就那么确定这个人没有问题？
+
+---
+
+- **6** 面试
+
+最近又面了好多家，其中 `Bybit` 和 `JingDong` 体验最好，大部分一般，小部分体验极差
+
+列出最近面试中出现的体验不好的情况
+
+- 我开摄像头，而面试官不开摄像头，不知道面试官是在俄乌战场打仗还是在墨西哥制毒
+- 面试官不对自己或自己部门的基本情况做介绍，完全是他问我答（面试官能说出自己姓什么，是什么部门做什么业务就已经遥遥领先了）
+- 不结合简历来提问，上来就是八股文拷打，陈年老八股是一成不变，这种最恶心
+- 国企金融行业会发 IQ/EQ/行为测试的链接，这里面包含一些找图形规律，算同比环比的题，大晚上的我做完让我一度怀疑我是个弱智
+
+> 踩坑记录：一家公司面试通过后，让我先办旅游签过去工作，然后公司再帮忙办工签，这是是纯纯把我当猴耍，哪怕薪资再高也去不了，持旅游签工作在哪个国家都是违法行为。这里可以学一下 Bybit 这些 CEX 的模式，先国内远程，试用期通过后，再通过正规工签去吉隆坡/阿布扎比线下办公
+
+---
+
+- **7** 惊天魔盗团3
+
+看了`惊天魔盗团3`，感觉没有前 2 部那么好看了，甚至最后有点侮辱我智商的感觉
+
+---
+
+- **8** Google
+
+`google` 这周发布了 `Gemini3 / nona banana pro / AntiGravity`
+
+尝试了一下 `nona banana 2` 和 `AntiGravity`
+
+用推上最火的 `meme` 图 `prompt` 测试了一下 `nano banana pro`，确实还可以
+
+<div style={{display: "flex", justifyContent: "center"}}>
+    <img
+        style={{width: "500px"}}
+        src="/static/images/2025-w46/nanoBananaPro.png"
+    />
+</div>
+
+用了之前测试 `cursor` 的方法来测试 `AntiGravity`，效果也还行，感觉 google 要通过 `AntiGravity + Gemini Cli` 去干死 cursor 和 anthropic cc
+
+测试内容：配置好`DNS`后，将服务器的`SSH`信息放到本地文件中，让 `AntiGravity` 根据我提供的 `DNS` 和 `SSH` 信息，帮我搭建一个 `Vmess` 节点
+
+**PS: 登录 AntiGravity 需要使用 Clash Tunnel 模式，而且 Google 邮箱账户不能是通过 +86 注册在大陆的，我用一个绑定了台湾的 gmail 账户登录成功**
+
+---
+
+## 工作
+
+null

@@ -1,0 +1,1013 @@
+---
+title: Argue with network dump
+date: '2025-11-11'
+tags: ['Tech']
+draft: false
+images: []
+summary: 通过抓包来扯皮
+lastmod: '2025-11-11'
+---
+
+<TOCInline toc={props.toc} indentDepth={3} fromHeading={2} toHeading={6}/>
+
+
+## Background
+
+AI 时代同质化内容太多，各种 `AI IDE/Agent` 已经能自主完成很多简单工作了，导致很多东西我已经没有写下去的动力了。
+
+但趁着最近比较闲，准备开一个系列来总结一些东西来帮助自己工作中扯皮，内容大概跟 `抓包/tcp-rt/网络等`有关
+
+
+## Experimental Env
+
+**系统环境**
+```shell
+- TShark (Wireshark) 3.6.2 (Git v3.6.2 packaged as 3.6.2-2)
+- psql (PostgreSQL) 14
+- python 3.10
+- Linux 5.15.0-130-generic
+```
+
+**pgserver 初始化**
+```sql
+CREATE DATABASE test;
+\c test
+CREATE TABLE demo (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(50) NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    age INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO demo (username, email, age)
+VALUES ('sunway', 'hi@sunway.run', 18);
+```
+
+**抓包命令**
+```shell
+// 简单抓包命令
+sudo tshark -i lo -f 'tcp port 5432' -d tcp.port==5432,pgsql
+
+// 抓包并解析 pgsql protocol 内容
+sudo tshark -i lo -f 'tcp port 5432' \
+  -d tcp.port==5432,pgsql \
+  -T fields \
+  -e frame.number \
+  -e frame.time_relative \
+  -e tcp.srcport \
+  -e tcp.dstport \
+  -e tcp.flags \
+  -e frame.len \
+  -e pgsql.type \
+  -e pgsql.query \
+  -e pgsql.parameter_name \
+  -e pgsql.parameter_value \
+  -E header=y \
+  -E separator='|' \
+  -E quote=d
+```
+
+**测试代码**
+<details>
+
+```python
+#!/usr/bin/env python3
+
+"""
+PostgreSQL connection script with command-line arguments
+Supports timeout configuration, SSL settings, runtime tracking and error stack trace
+"""
+
+import argparse
+import sys
+import os
+import time
+import traceback
+import psycopg2
+from psycopg2 import OperationalError, Error
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(
+        description='Connect to PostgreSQL with configurable timeout settings',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+
+    # Database connection parameters
+    parser.add_argument(
+        '--host',
+        type=str,
+        default='localhost',
+        help='PostgreSQL host address'
+    )
+    parser.add_argument(
+        '--port',
+        type=int,
+        default=5432,
+        help='PostgreSQL port number'
+    )
+    parser.add_argument(
+        '--database',
+        type=str,
+        default='postgres',
+        help='Database name'
+    )
+    parser.add_argument(
+        '--user',
+        type=str,
+        default='postgres',
+        help='Database username'
+    )
+    parser.add_argument(
+        '--password',
+        type=str,
+        default='',
+        help='Database password'
+    )
+
+    # Timeout parameters
+    parser.add_argument(
+        '--statementtimeout',
+        type=int,
+        default=30000,
+        help='Statement timeout in milliseconds (query execution timeout)'
+    )
+    parser.add_argument(
+        '--connecttimeout',
+        type=int,
+        default=5000,
+        help='Connection timeout in milliseconds'
+    )
+
+    # SSL parameter
+    parser.add_argument(
+        '--ssl',
+        type=str,
+        default='false',
+        choices=['true', 'false', 'require', 'prefer', 'allow', 'disable'],
+        help='SSL mode (true/false/require/prefer/allow/disable)'
+    )
+
+    # Query parameters
+    parser.add_argument(
+        '--sleep',
+        type=int,
+        default=3,
+        help='Sleep duration in seconds for testing'
+    )
+    parser.add_argument(
+        '--query',
+        type=str,
+        default=None,
+        help='Custom SQL query to execute'
+    )
+
+    return parser.parse_args()
+
+def convert_ssl_mode(ssl_param):
+    """
+    Convert SSL parameter to psycopg2 sslmode
+    """
+    ssl_mapping = {
+        'true': 'require',
+        'false': 'disable',
+        'require': 'require',
+        'prefer': 'prefer',
+        'allow': 'allow',
+        'disable': 'disable'
+    }
+    return ssl_mapping.get(ssl_param.lower(), 'disable')
+
+def format_runtime(seconds):
+    """
+    Format runtime duration into human-readable format
+    """
+    if seconds < 60:
+        return f"{seconds:.3f} seconds"
+    elif seconds < 3600:
+        minutes = seconds / 60
+        return f"{minutes:.2f} minutes ({seconds:.3f} seconds)"
+    else:
+        hours = seconds / 3600
+        return f"{hours:.2f} hours ({seconds:.3f} seconds)"
+
+def print_error_stack(error, error_type="Error"):
+    """
+    Print detailed error information with stack trace
+    """
+    print("\n" + "=" * 70)
+    print(f"ERROR: {error_type}")
+    print("=" * 70)
+    print(f"Error Message: {str(error)}")
+    print(f"Error Type: {type(error).__name__}")
+    print("\n" + "-" * 70)
+    print("Stack Trace:")
+    print("-" * 70)
+    traceback.print_exc()
+    print("=" * 70)
+
+def connect_and_execute(args):
+    """
+    Connect to PostgreSQL and execute query with timeout settings
+    """
+    # Record start time
+    start_time = time.perf_counter()
+
+    # Convert milliseconds to seconds for connect_timeout
+    connect_timeout_sec = args.connecttimeout / 1000.0
+
+    # Use statement_timeout in milliseconds
+    statement_timeout_ms = args.statementtimeout
+
+    # Prepare connection parameters
+    db_config = {
+        'host': args.host,
+        'port': args.port,
+        'database': args.database,
+        'user': args.user,
+        'password': args.password,
+        'connect_timeout': int(connect_timeout_sec),
+        'sslmode': convert_ssl_mode(args.ssl),
+        'options': f'-c statement_timeout={statement_timeout_ms}'
+    }
+
+    # Remove empty password if not provided
+    if not db_config['password']:
+        del db_config['password']
+
+    connection = None
+    cursor = None
+
+    try:
+        # Display connection information
+        print("=" * 70)
+        print("PostgreSQL Connection Configuration")
+        print("=" * 70)
+        print(f"Host: {args.host}:{args.port}")
+        print(f"Database: {args.database}")
+        print(f"User: {args.user}")
+        print(f"Connect Timeout: {args.connecttimeout}ms ({connect_timeout_sec}s)")
+        print(f"Statement Timeout: {args.statementtimeout}ms ({args.statementtimeout / 1000}s)")
+        print(f"SSL Mode: {convert_ssl_mode(args.ssl)}")
+        print("=" * 70)
+
+        # Establish connection
+        print("\nConnecting to PostgreSQL...")
+        connection = psycopg2.connect(**db_config)
+        print(f"✓ Connected successfully! Backend PID: {connection.get_backend_pid()}")
+
+        # Create cursor
+        cursor = connection.cursor()
+
+        # Execute query
+        if args.query:
+            # Execute custom query
+            print(f"\nExecuting custom query: {args.query}")
+            query_start = time.perf_counter()
+            cursor.execute(args.query)
+            query_end = time.perf_counter()
+            results = cursor.fetchall()
+            print(f"\nQuery Results:")
+            print("-" * 70)
+            for row in results:
+                print(row)
+            print("-" * 70)
+            print(f"Total rows returned: {len(results)}")
+            print(f"Query execution time: {format_runtime(query_end - query_start)}")
+        else:
+            # Execute default sleep query with data from demo table
+            query = f"SELECT pg_sleep({args.sleep}), id FROM demo"
+            print(f"\nExecuting: {query}")
+            print(f"This will sleep for {args.sleep} seconds and return id from demo table...")
+            query_start = time.perf_counter()
+            cursor.execute(query)
+            query_end = time.perf_counter()
+            results = cursor.fetchall()
+            print(f"\n✓ Query completed successfully!")
+            print("\nQuery Results:")
+            print("-" * 70)
+            for row in results:
+                print(f"pg_sleep result: {row[0]}, id: {row[1]}")
+            print("-" * 70)
+            print(f"Total rows returned: {len(results)}")
+            print(f"Query execution time: {format_runtime(query_end - query_start)}")
+
+        # Show current timeout settings
+        cursor.execute("SHOW statement_timeout;")
+        current_timeout = cursor.fetchone()[0]
+        print(f"\nCurrent statement_timeout: {current_timeout}")
+
+        # Calculate total runtime
+        end_time = time.perf_counter()
+        total_runtime = end_time - start_time
+
+        print("\n" + "=" * 70)
+        print("Execution completed successfully!")
+        print("=" * 70)
+        print(f"Total Runtime: {format_runtime(total_runtime)}")
+        print("=" * 70)
+
+        return 0
+
+    except OperationalError as e:
+        # Calculate runtime before exit
+        end_time = time.perf_counter()
+        total_runtime = end_time - start_time
+        print(f"\n⏱ Total runtime: {format_runtime(total_runtime)}")
+        print(f"\n⏱ Error: {e}")
+        return 1
+
+    except Error as e:
+        print_error_stack(e, "Database Error")
+        # Calculate runtime before exit
+        end_time = time.perf_counter()
+        total_runtime = end_time - start_time
+        print(f"\n⏱ Runtime before error: {format_runtime(total_runtime)}")
+        return 2
+
+    except Exception as e:
+        print_error_stack(e, "Unexpected Error")
+        # Calculate runtime before exit
+        end_time = time.perf_counter()
+        total_runtime = end_time - start_time
+        print(f"\n⏱ Runtime before error: {format_runtime(total_runtime)}")
+        return 3
+
+    finally:
+        # Clean up resources
+        if cursor:
+            try:
+                cursor.close()
+            except:
+                pass
+        if connection:
+            try:
+                connection.close()
+                print("\nConnection closed.")
+            except:
+                pass
+
+def main():
+    """
+    Main function
+    """
+    try:
+        args = parse_arguments()
+        exit_code = connect_and_execute(args)
+        sys.exit(exit_code)
+    except Exception as e:
+        print_error_stack(e, "Fatal Error in Main")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
+```
+</details>
+
+
+## Experiment-1
+
+实验条件: `select sleep(3s)` 小于 `sockettimeout 5s` 的超时时间
+
+* --statementtimeout=5000
+* --connecttimeout=5000
+* --ssl=false
+* --sleep=3
+
+```
+// python client 通过 postgres server 来执行 sql: select sleep(3)
+python3 test.py --host=localhost --port=5432 --database=test --user=postgres --password=sunway123 --statementtimeout=5000 --connecttimeout=5000 --ssl=false --sleep=3
+```
+
+
+
+### 1.1 抓包结果
+
+<span style={{ color: 'blue' }}>网络层面的抓包结果如下</span>
+
+```text
+1 0.000000000    127.0.0.1 → 127.0.0.1    TCP 74 48312 → 5432 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=1552912274 TSecr=0 WS=128
+2 0.000015840    127.0.0.1 → 127.0.0.1    TCP 74 5432 → 48312 [SYN, ACK] Seq=0 Ack=1 Win=65483 Len=0 MSS=65495 SACK_PERM=1 TSval=1552912274 TSecr=1552912274 WS=128
+3 0.000030010    127.0.0.1 → 127.0.0.1    TCP 66 48312 → 5432 [ACK] Seq=1 Ack=1 Win=65536 Len=0 TSval=1552912274 TSecr=1552912274
+4 0.000067909    127.0.0.1 → 127.0.0.1    PGSQL 137 >
+5 0.000073888    127.0.0.1 → 127.0.0.1    TCP 66 5432 → 48312 [ACK] Seq=1 Ack=72 Win=65536 Len=0 TSval=1552912274 TSecr=1552912274
+6 0.001889138    127.0.0.1 → 127.0.0.1    PGSQL 90 <R
+7 0.001898677    127.0.0.1 → 127.0.0.1    TCP 66 48312 → 5432 [ACK] Seq=72 Ack=25 Win=65536 Len=0 TSval=1552912276 TSecr=1552912276
+8 0.003379434    127.0.0.1 → 127.0.0.1    PGSQL 121 >p
+9 0.003436204    127.0.0.1 → 127.0.0.1    PGSQL 159 <R
+10 0.006093864    127.0.0.1 → 127.0.0.1    PGSQL 175 >p
+11 0.010324958    127.0.0.1 → 127.0.0.1    PGSQL 544 <R/R/S/S/S/S/S/S/S/S/S/S/S/S/S/K/Z
+12 0.010511384    127.0.0.1 → 127.0.0.1    PGSQL 77 >Q
+13 0.010695320    127.0.0.1 → 127.0.0.1    PGSQL 83 <C/Z
+14 0.010721889    127.0.0.1 → 127.0.0.1    PGSQL 104 >Q
+15 0.054475476    127.0.0.1 → 127.0.0.1    TCP 66 5432 → 48312 [ACK] Seq=613 Ack=285 Win=65536 Len=0 TSval=1552912329 TSecr=1552912285
+16 3.014800914    127.0.0.1 → 127.0.0.1    PGSQL 157 <T/D/C/Z
+17 3.015021398    127.0.0.1 → 127.0.0.1    PGSQL 95 >Q
+18 3.015038238    127.0.0.1 → 127.0.0.1    TCP 66 5432 → 48312 [ACK] Seq=704 Ack=314 Win=65536 Len=0 TSval=1552915289 TSecr=1552915289
+19 3.015185404    127.0.0.1 → 127.0.0.1    PGSQL 138 <T/D/C/Z
+20 3.015281262    127.0.0.1 → 127.0.0.1    PGSQL 71 >X
+21 3.015309272    127.0.0.1 → 127.0.0.1    TCP 66 48312 → 5432 [FIN, ACK] Seq=319 Ack=776 Win=65536 Len=0 TSval=1552915289 TSecr=1552915289
+22 3.018378442    127.0.0.1 → 127.0.0.1    TCP 66 5432 → 48312 [FIN, ACK] Seq=776 Ack=320 Win=65536 Len=0 TSval=1552915292 TSecr=1552915289
+23 3.018394392    127.0.0.1 → 127.0.0.1    TCP 66 48312 → 5432 [ACK] Seq=320 Ack=777 Win=65536 Len=0 TSval=1552915292 TSecr=1552915292
+```
+
+---
+
+<span style={{ color: 'blue' }}>解析 pgsql protocol 后的抓包结果如下</span>
+
+```text
+"1"|"0.000000000"|"48312"|"5432"|"0x0002"|"74"||||
+"2"|"0.000015840"|"5432"|"48312"|"0x0012"|"74"||||
+"3"|"0.000030010"|"48312"|"5432"|"0x0010"|"66"||||
+"4"|"0.000067909"|"48312"|"5432"|"0x0018"|"137"|"Startup message"||"user,database,options"|"postgres,test,-c statement_timeout=5000"
+"5"|"0.000073888"|"5432"|"48312"|"0x0010"|"66"||||
+"6"|"0.001889138"|"5432"|"48312"|"0x0018"|"90"|"Authentication request"|||
+"7"|"0.001898677"|"48312"|"5432"|"0x0010"|"66"||||
+"8"|"0.003379434"|"48312"|"5432"|"0x0018"|"121"|"SASLInitialResponse message"|||
+"9"|"0.003436204"|"5432"|"48312"|"0x0018"|"159"|"Authentication request"|||
+"10"|"0.006093864"|"48312"|"5432"|"0x0018"|"175"|"SASLResponse message"|||
+"11"|"0.010324958"|"5432"|"48312"|"0x0018"|"544"|"Authentication request,Authentication request,Parameter status,Parameter status,Parameter status,Parameter status,Parameter status,Parameter status,Parameter status,Parameter status,Parameter status,Parameter status,Parameter status,Parameter status,Parameter status,Backend key data,Ready for query"||"application_name,client_encoding,DateStyle,default_transaction_read_only,in_hot_standby,integer_datetimes,IntervalStyle,is_superuser,server_encoding,server_version,session_authorization,standard_conforming_strings,TimeZone"|",UTF8,ISO, MDY,off,off,on,postgres,on,UTF8,14.19 (Ubuntu 14.19-0ubuntu0.22.04.1),postgres,on,Asia/Shanghai"
+"12"|"0.010511384"|"48312"|"5432"|"0x0018"|"77"|"Simple query"|"BEGIN"||
+"13"|"0.010695320"|"5432"|"48312"|"0x0018"|"83"|"Command completion,Ready for query"|||
+"14"|"0.010721889"|"48312"|"5432"|"0x0018"|"104"|"Simple query"|"SELECT pg_sleep(3), id FROM demo"||
+"15"|"0.054475476"|"5432"|"48312"|"0x0010"|"66"||||
+"16"|"3.014800914"|"5432"|"48312"|"0x0018"|"157"|"Row description,Data row,Command completion,Ready for query"|||
+"17"|"3.015021398"|"48312"|"5432"|"0x0018"|"95"|"Simple query"|"SHOW statement_timeout;"||
+"18"|"3.015038238"|"5432"|"48312"|"0x0010"|"66"||||
+"19"|"3.015185404"|"5432"|"48312"|"0x0018"|"138"|"Row description,Data row,Command completion,Ready for query"|||
+"20"|"3.015281262"|"48312"|"5432"|"0x0018"|"71"|"Termination"|||
+"21"|"3.015309272"|"48312"|"5432"|"0x0011"|"66"||||
+"22"|"3.018378442"|"5432"|"48312"|"0x0011"|"66"||||
+"23"|"3.018394392"|"48312"|"5432"|"0x0010"|"66"||||
+```
+
+### 1.2 抓包解析
+
+**网络层抓包结果解析:**
+
+通过`抓包命令1`可以清晰的看到 `python client` 和 `pgserver` 三次握手和四次挥手的过程
+
+它们分别对应 `package 1-3` 和 `package 21-23`，但是由于没有通过 `pgsql protocol` 解析 `package 4-20`，所有不知道中间具体发生了什么
+
+可以尝试添加 `-V verbose` `-O <protocols>` `-Y <display filter>` 获取更加详细的输出，但是输出结果实在太多不好放在 `blog` 中了，这里跳过
+
+```shell
+sudo tshark -i lo -f 'tcp port 5432' \
+  -d tcp.port==5432,pgsql \
+  -Y pgsql \
+  -O pgsql \
+  -V \
+  --color
+```
+
+**应用层抓包结果解析:**
+
+- ✅ TCP 三次握手建立连接
+- ✅ SCRAM-SHA-256 认证成功
+- ✅ 开启事务(BEGIN)
+- ✅ 执行查询(SELECT pg_sleep(3))
+- ✅ 查看会话配置(SHOW statement_timeout)
+- ✅ TCP 四次挥手关闭连接
+
+**阶段1:**
+```text
+Packet 1: Client -> Server [SYN]
+- 客户端(34696) 向服务器(5432) 发起连接请求
+- TCP Flags: 0x0002 (SYN)
+
+Packet 2: Server -> Client [SYN, ACK]
+- 服务器响应并确认连接
+- TCP Flags: 0x0012 (SYN + ACK)
+
+Packet 3: Client -> Server [ACK]
+- 客户端确认连接建立
+- TCP Flags: 0x0010 (ACK)
+```
+---
+
+**阶段2: PostgreSQL 启动和认证 (Packets 4-11)**
+```text
+Packet 4: Startup Message
+- Client -> Server [PSH, ACK]
+- 客户端发送启动消息,包含:
+• user: postgres
+• database: test
+• options: -c statement_timeout=5000 (设置语句超时为5秒)
+- Frame length: 137 bytes
+
+Packet 5: ACK
+- Server -> Client 确认收到
+
+Packet 6: Authentication Request
+- Server -> Client [PSH, ACK]
+- 服务器请求身份认证(SCRAM-SHA-256)
+- Frame length: 90 bytes
+
+Packet 7: ACK
+- Client -> Server 确认收到
+
+Packet 8: SASL Initial Response
+- Client -> Server [PSH, ACK]
+- 客户端发送 SASL 认证初始响应
+- Frame length: 121 bytes
+
+Packet 9: Authentication Request (Challenge)
+- Server -> Client [PSH, ACK]
+- 服务器发送认证挑战
+- Frame length: 159 bytes
+
+Packet 10: SASL Response
+- Client -> Server [PSH, ACK]
+- 客户端发送 SASL 认证响应
+- Frame length: 175 bytes
+
+Packet 11: Authentication Success + Session Parameters
+- Server -> Client [PSH, ACK]
+- 认证成功,服务器发送多个消息:
+• Authentication OK
+• Parameter Status (会话参数):
+  - client_encoding: UTF8
+  - DateStyle: ISO, MDY
+  - TimeZone: Asia/Shanghai
+  - server_version: 14.19
+  - 等其他参数
+• Backend Key Data (用于取消查询)
+• Ready for Query (准备接受查询)
+- Frame length: 544 bytes
+```
+
+---
+
+**阶段3: 执行事务 (Packets 12-16)**
+```text
+Packet 12: BEGIN Transaction
+- Client -> Server [PSH, ACK]
+- 执行 SQL: "BEGIN"
+- Frame length: 77 bytes
+
+Packet 13: Command Completion
+- Server -> Client [PSH, ACK]
+- BEGIN 命令完成,返回 Ready for Query
+- Frame length: 83 bytes
+
+Packet 14: Execute Query
+- Client -> Server [PSH, ACK]
+- 执行 SQL: "SELECT pg_sleep(3);"
+- Frame length: 91 bytes
+- 时间: 0.007264218 秒
+
+Packet 15: ACK
+- Server -> Client [ACK]
+- 服务器确认收到查询 (0.048秒时)
+
+Packet 16: Query Result
+- Server -> Client [PSH, ACK]
+- 返回查询结果:
+• Row description (列描述)
+• Data row (数据行)
+• Command completion (命令完成)
+• Ready for query (准备接受新查询)
+- Frame length: 131 bytes
+- 时间: 3.010737254 秒 (约3秒后,pg_sleep完成)
+```
+
+---
+
+**阶段4: 查询配置并关闭 (Packets 17-23)**
+```text
+Packet 17: Show Statement Timeout
+- Client -> Server [PSH, ACK]
+- 执行 SQL: "SHOW statement_timeout;"
+- Frame length: 95 bytes
+
+Packet 18: ACK
+- Server -> Client [ACK]
+
+Packet 19: Query Result
+- Server -> Client [PSH, ACK]
+- 返回 statement_timeout 的值 (5000ms)
+- Frame length: 138 bytes
+
+Packet 20: Termination
+- Client -> Server [PSH, ACK]
+- 客户端发送终止消息,关闭连接
+- Frame length: 71 bytes
+
+Packet 21: FIN from Client
+- Client -> Server [FIN, ACK]
+- TCP Flags: 0x0011 (FIN + ACK)
+
+Packet 22: FIN from Server
+- Server -> Client [FIN, ACK]
+- TCP Flags: 0x0011 (FIN + ACK)
+
+Packet 23: Final ACK
+- Client -> Server [ACK]
+- 四次挥手完成,连接关闭
+```
+
+---
+
+## Experiment-2
+
+实验条件: `select sleep(6s)` 大于 `statement timeout 5s` 的超时时间
+
+* --statementtimeout=5000
+* --connecttimeout=5000
+* -ssl=false
+* --sleep=6
+
+```
+// python client 通过 postgres server 来执行 sql: select sleep(6)
+python3 test.py --host=localhost --port=5432 --database=test --user=postgres --password=sunway123 --statementtimeout=5000 --connecttimeout=5000 --ssl=false --sleep=6
+```
+
+### 2.1 抓包结果
+
+
+<span style={{ color: 'blue' }}>网络层面的抓包结果如下</span>
+
+```text
+1 0.000000000    127.0.0.1 → 127.0.0.1    TCP 74 45000 → 5432 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=1552987698 TSecr=0 WS=128
+2 0.000019789    127.0.0.1 → 127.0.0.1    TCP 74 5432 → 45000 [SYN, ACK] Seq=0 Ack=1 Win=65483 Len=0 MSS=65495 SACK_PERM=1 TSval=1552987698 TSecr=1552987698 WS=128
+3 0.000034650    127.0.0.1 → 127.0.0.1    TCP 66 45000 → 5432 [ACK] Seq=1 Ack=1 Win=65536 Len=0 TSval=1552987698 TSecr=1552987698
+4 0.000073569    127.0.0.1 → 127.0.0.1    PGSQL 137 >
+5 0.000079208    127.0.0.1 → 127.0.0.1    TCP 66 5432 → 45000 [ACK] Seq=1 Ack=72 Win=65536 Len=0 TSval=1552987698 TSecr=1552987698
+6 0.001996375    127.0.0.1 → 127.0.0.1    PGSQL 90 <R
+7 0.002005205    127.0.0.1 → 127.0.0.1    TCP 66 45000 → 5432 [ACK] Seq=72 Ack=25 Win=65536 Len=0 TSval=1552987700 TSecr=1552987700
+8 0.003382744    127.0.0.1 → 127.0.0.1    PGSQL 121 >p
+9 0.003446084    127.0.0.1 → 127.0.0.1    PGSQL 159 <R
+10 0.006181032    127.0.0.1 → 127.0.0.1    PGSQL 175 >p
+11 0.007301567    127.0.0.1 → 127.0.0.1    PGSQL 544 <R/R/S/S/S/S/S/S/S/S/S/S/S/S/S/K/Z
+12 0.007451303    127.0.0.1 → 127.0.0.1    PGSQL 77 >Q
+13 0.007572961    127.0.0.1 → 127.0.0.1    PGSQL 83 <C/Z
+14 0.007599659    127.0.0.1 → 127.0.0.1    PGSQL 104 >Q
+15 0.050241002    127.0.0.1 → 127.0.0.1    TCP 66 5432 → 45000 [ACK] Seq=613 Ack=285 Win=65536 Len=0 TSval=1552987749 TSecr=1552987706
+16 5.007742397    127.0.0.1 → 127.0.0.1    PGSQL 231 <T/E
+17 5.007816915    127.0.0.1 → 127.0.0.1    PGSQL 72 <Z
+18 5.007846635    127.0.0.1 → 127.0.0.1    TCP 66 45000 → 5432 [ACK] Seq=285 Ack=784 Win=65536 Len=0 TSval=1552992706 TSecr=1552992706
+19 5.007981702    127.0.0.1 → 127.0.0.1    PGSQL 71 >X
+20 5.007988321    127.0.0.1 → 127.0.0.1    TCP 66 5432 → 45000 [ACK] Seq=784 Ack=290 Win=65536 Len=0 TSval=1552992706 TSecr=1552992706
+21 5.008023331    127.0.0.1 → 127.0.0.1    TCP 66 45000 → 5432 [FIN, ACK] Seq=290 Ack=784 Win=65536 Len=0 TSval=1552992706 TSecr=1552992706
+22 5.010911886    127.0.0.1 → 127.0.0.1    TCP 66 5432 → 45000 [FIN, ACK] Seq=784 Ack=291 Win=65536 Len=0 TSval=1552992709 TSecr=1552992706
+23 5.010926267    127.0.0.1 → 127.0.0.1    TCP 66 45000 → 5432 [ACK] Seq=291 Ack=785 Win=65536 Len=0 TSval=1552992709 TSecr=1552992709
+```
+---
+
+<span style={{ color: 'blue' }}>解析 pgsql protocol 后的抓包结果如下</span>
+
+```text
+"1"|"0.000000000"|"45000"|"5432"|"0x0002"|"74"||||
+"2"|"0.000019789"|"5432"|"45000"|"0x0012"|"74"||||
+"3"|"0.000034650"|"45000"|"5432"|"0x0010"|"66"||||
+"4"|"0.000073569"|"45000"|"5432"|"0x0018"|"137"|"Startup message"||"user,database,options"|"postgres,test,-c statement_timeout=5000"
+"5"|"0.000079208"|"5432"|"45000"|"0x0010"|"66"||||
+"6"|"0.001996375"|"5432"|"45000"|"0x0018"|"90"|"Authentication request"|||
+"7"|"0.002005205"|"45000"|"5432"|"0x0010"|"66"||||
+"8"|"0.003382744"|"45000"|"5432"|"0x0018"|"121"|"SASLInitialResponse message"|||
+"9"|"0.003446084"|"5432"|"45000"|"0x0018"|"159"|"Authentication request"|||
+"10"|"0.006181032"|"45000"|"5432"|"0x0018"|"175"|"SASLResponse message"|||
+"11"|"0.007301567"|"5432"|"45000"|"0x0018"|"544"|"Authentication request,Authentication request,Parameter status,Parameter status,Parameter status,Parameter status,Parameter status,Parameter status,Parameter status,Parameter status,Parameter status,Parameter status,Parameter status,Parameter status,Parameter status,Backend key data,Ready for query"||"application_name,client_encoding,DateStyle,default_transaction_read_only,in_hot_standby,integer_datetimes,IntervalStyle,is_superuser,server_encoding,server_version,session_authorization,standard_conforming_strings,TimeZone"|",UTF8,ISO, MDY,off,off,on,postgres,on,UTF8,14.19 (Ubuntu 14.19-0ubuntu0.22.04.1),postgres,on,Asia/Shanghai"
+"12"|"0.007451303"|"45000"|"5432"|"0x0018"|"77"|"Simple query"|"BEGIN"||
+"13"|"0.007572961"|"5432"|"45000"|"0x0018"|"83"|"Command completion,Ready for query"|||
+"14"|"0.007599659"|"45000"|"5432"|"0x0018"|"104"|"Simple query"|"SELECT pg_sleep(6), id FROM demo"||
+"15"|"0.050241002"|"5432"|"45000"|"0x0010"|"66"||||
+"16"|"5.007742397"|"5432"|"45000"|"0x0018"|"231"|"Row description,Error"|||
+"17"|"5.007816915"|"5432"|"45000"|"0x0018"|"72"|"Ready for query"|||
+"18"|"5.007846635"|"45000"|"5432"|"0x0010"|"66"||||
+"19"|"5.007981702"|"45000"|"5432"|"0x0018"|"71"|"Termination"|||
+"20"|"5.007988321"|"5432"|"45000"|"0x0010"|"66"||||
+"21"|"5.008023331"|"45000"|"5432"|"0x0011"|"66"||||
+"22"|"5.010911886"|"5432"|"45000"|"0x0011"|"66"||||
+"23"|"5.010926267"|"45000"|"5432"|"0x0010"|"66"||||
+```
+
+### 2.2 抓包解析
+
+✅ 客户端没有发送 `TCP Reset` 来关闭连接，而是正常完成了四次挥手
+✅ Package 16: 当 `sleep` 时间超过 `statement timeout` 时，抓包时间`5.007730105`，服务端`5432`向客户端`45000`发送 `Error`
+✅ Package 19: 客户端 `45000` 端口主动向服务端 `5432` 发送了 `Termination` 信号
+
+虽然显示正常4次挥手，但是还是能从客户端日志中获取明确的错误信息`⏱ Error: canceling statement due to statement timeout`; 而且抓包信息也能够明确抓到客户端在收到`Error`后向服务端发送的 `Termination` 信号。
+
+这里要注意 `statement_timeout` 作用域是`服务端的 SQL 执行阶段`，`connect_timeout` 和 `socket_timeout`是`客户端网络层面的 Socket I/O 配置`
+
+> jdbc mysql 提供了网络层面的配置参数: socketTimeout，在这种情况下抓包，可以看到客户端因长时间收不到返回结果而主动向服务端发送的 reset 包；但是由于 psycopg2 这个依赖只提供了 statementTimeout 参数，这种情况下抓包不会出现异常关闭连接的现象
+
+---
+
+## Experiment-3
+
+实验条件: `select sleep(50)` 小于 `statement timeout 100s` 的超时时间，但是服务端执行 `SELECT pg_terminate_backend(pid)` 来杀死正在进行查询的进程
+
+* --statementtimeout=100000
+* --connecttimeout=5000
+* --ssl=false
+* --sleep=50
+
+```shell
+// python client 通过 postgres server 来执行 sql: select sleep(50)
+python3 test.py --host=localhost --port=5432 --database=test --user=postgres --password=sunway123 --statementtimeout=100000 --connecttimeout=5000 --ssl=false --sleep=50
+```
+
+```sql
+// postgres 客户端找到 hang 住的查询并强行杀死该进程
+SELECT
+    pid,
+    usename,
+    datname,
+    client_addr,
+    application_name,
+    state,
+    query_start,
+    state_change,
+    query
+FROM pg_stat_activity;
+
+SELECT pg_terminate_backend(xxxxxx);
+```
+
+### 3.1 抓包结果
+
+<span style={{ color: 'blue' }}>网络层面的抓包结果如下</span>
+
+```text
+1 0.000000000    127.0.0.1 → 127.0.0.1    TCP 74 33838 → 5432 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=1547751456 TSecr=0 WS=128
+2 0.000021290    127.0.0.1 → 127.0.0.1    TCP 74 5432 → 33838 [SYN, ACK] Seq=0 Ack=1 Win=65483 Len=0 MSS=65495 SACK_PERM=1 TSval=1547751456 TSecr=1547751456 WS=128
+3 0.000036690    127.0.0.1 → 127.0.0.1    TCP 66 33838 → 5432 [ACK] Seq=1 Ack=1 Win=65536 Len=0 TSval=1547751456 TSecr=1547751456
+4 0.000077368    127.0.0.1 → 127.0.0.1    PGSQL 139 >
+5 0.000084678    127.0.0.1 → 127.0.0.1    TCP 66 5432 → 33838 [ACK] Seq=1 Ack=74 Win=65536 Len=0 TSval=1547751456 TSecr=1547751456
+6 0.001914407    127.0.0.1 → 127.0.0.1    PGSQL 90 <R
+7 0.001924827    127.0.0.1 → 127.0.0.1    TCP 66 33838 → 5432 [ACK] Seq=74 Ack=25 Win=65536 Len=0 TSval=1547751458 TSecr=1547751458
+8 0.003243268    127.0.0.1 → 127.0.0.1    PGSQL 121 >p
+9 0.003299906    127.0.0.1 → 127.0.0.1    PGSQL 159 <R
+10 0.005921228    127.0.0.1 → 127.0.0.1    PGSQL 175 >p
+11 0.006957325    127.0.0.1 → 127.0.0.1    PGSQL 544 <R/R/S/S/S/S/S/S/S/S/S/S/S/S/S/K/Z
+12 0.007126651    127.0.0.1 → 127.0.0.1    PGSQL 77 >Q
+13 0.007234239    127.0.0.1 → 127.0.0.1    PGSQL 83 <C/Z
+14 0.007258198    127.0.0.1 → 127.0.0.1    PGSQL 105 >Q
+15 0.048216962    127.0.0.1 → 127.0.0.1    TCP 66 5432 → 33838 [ACK] Seq=613 Ack=288 Win=65536 Len=0 TSval=1547751505 TSecr=1547751464
+16 13.888249943    127.0.0.1 → 127.0.0.1    PGSQL 238 <T/E
+17 13.891028870    127.0.0.1 → 127.0.0.1    TCP 66 5432 → 33838 [FIN, ACK] Seq=785 Ack=288 Win=65536 Len=0 TSval=1547765347 TSecr=1547751464
+18 13.891089319    127.0.0.1 → 127.0.0.1    TCP 66 33838 → 5432 [FIN, ACK] Seq=288 Ack=786 Win=65536 Len=0 TSval=1547765347 TSecr=1547765345
+19 13.891103219    127.0.0.1 → 127.0.0.1    TCP 66 5432 → 33838 [ACK] Seq=786 Ack=289 Win=65536 Len=0 TSval=1547765347 TSecr=1547765347
+```
+
+---
+
+<span style={{ color: 'blue' }}>解析 pgsql protocol 后的抓包结果如下</span>
+
+```text
+"1"|"0.000000000"|"33838"|"5432"|"0x0002"|"74"||||
+"2"|"0.000021290"|"5432"|"33838"|"0x0012"|"74"||||
+"3"|"0.000036690"|"33838"|"5432"|"0x0010"|"66"||||
+"4"|"0.000077368"|"33838"|"5432"|"0x0018"|"139"|"Startup message"||"user,database,options"|"postgres,test,-c statement_timeout=100000"
+"5"|"0.000084678"|"5432"|"33838"|"0x0010"|"66"||||
+"6"|"0.001914407"|"5432"|"33838"|"0x0018"|"90"|"Authentication request"|||
+"7"|"0.001924827"|"33838"|"5432"|"0x0010"|"66"||||
+"8"|"0.003243268"|"33838"|"5432"|"0x0018"|"121"|"SASLInitialResponse message"|||
+"9"|"0.003299906"|"5432"|"33838"|"0x0018"|"159"|"Authentication request"|||
+"10"|"0.005921228"|"33838"|"5432"|"0x0018"|"175"|"SASLResponse message"|||
+"11"|"0.006957325"|"5432"|"33838"|"0x0018"|"544"|"Authentication request,Authentication request,Parameter status,Parameter status,Parameter status,Parameter status,Parameter status,Parameter status,Parameter status,Parameter status,Parameter status,Parameter status,Parameter status,Parameter status,Parameter status,Backend key data,Ready for query"||"application_name,client_encoding,DateStyle,default_transaction_read_only,in_hot_standby,integer_datetimes,IntervalStyle,is_superuser,server_encoding,server_version,session_authorization,standard_conforming_strings,TimeZone"|",UTF8,ISO, MDY,off,off,on,postgres,on,UTF8,14.19 (Ubuntu 14.19-0ubuntu0.22.04.1),postgres,on,Asia/Shanghai"
+"12"|"0.007126651"|"33838"|"5432"|"0x0018"|"77"|"Simple query"|"BEGIN"||
+"13"|"0.007234239"|"5432"|"33838"|"0x0018"|"83"|"Command completion,Ready for query"|||
+"14"|"0.007258198"|"33838"|"5432"|"0x0018"|"105"|"Simple query"|"SELECT pg_sleep(30), id FROM demo"||
+"15"|"0.048216962"|"5432"|"33838"|"0x0010"|"66"||||
+"16"|"13.888249943"|"5432"|"33838"|"0x0018"|"238"|"Row description,Error"|||
+"17"|"13.891028870"|"5432"|"33838"|"0x0011"|"66"||||
+"18"|"13.891089319"|"33838"|"5432"|"0x0011"|"66"||||
+"19"|"13.891103219"|"5432"|"33838"|"0x0010"|"66"||||
+```
+
+### 3.2 抓包解析
+
+✅ `package 16` 显示 `postgres 5432` 向 `python 33838` 发送了 `Error Msg`
+✅ 最后 `package 17-19`，服务端没有发送 `TCP Reset` 来关闭连接，而是通过正常地四次挥手来关闭了连接
+
+这里服务端无论是执行 `pg_cancel_backend(pid)` 还是 `pg_terminate_backend(pid)` 都是会正常进行四次挥手。
+
+`PostgreSQL` 会向客户端发送 `Error` 终止信号进行正常连接关闭，`psycopg2` 捕获到这个信号后会执行清理逻辑
+
+> 客户端代码错误日志也很明显：⏱ Error: server closed the connection unexpectedly, This probably means the server terminated abnormally before or while processing the request.
+
+
+---
+
+## Experiment-4
+
+实验条件: `select sleep(50)` 小于 `statement timeout 100s` 的超时时间，但是在`sql`执行完成前通过操作系统 `kill -9 $PID` 强行杀死客户端进程
+
+* --statementtimeout=100000
+* --connecttimeout=5000
+* --ssl=false
+* --sleep=50
+
+```shell
+// python client 通过 postgres server 来执行 sql: select sleep(50)
+python3 test.py --host=localhost --port=5432 --database=test --user=postgres --password=sunway123 --statementtimeout=100000 --connecttimeout=5000 --ssl=false --sleep=50
+```
+
+### 4.1 抓包结果
+
+<span style={{ color: 'blue' }}>网络层面的抓包结果如下</span>
+
+```text
+1 0.000000000    127.0.0.1 → 127.0.0.1    TCP 74 50202 → 5432 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=1550023327 TSecr=0 WS=128
+2 0.000023120    127.0.0.1 → 127.0.0.1    TCP 74 5432 → 50202 [SYN, ACK] Seq=0 Ack=1 Win=65483 Len=0 MSS=65495 SACK_PERM=1 TSval=1550023327 TSecr=1550023327 WS=128
+3 0.000039249    127.0.0.1 → 127.0.0.1    TCP 66 50202 → 5432 [ACK] Seq=1 Ack=1 Win=65536 Len=0 TSval=1550023327 TSecr=1550023327
+4 0.000088378    127.0.0.1 → 127.0.0.1    PGSQL 139 >
+5 0.000096418    127.0.0.1 → 127.0.0.1    TCP 66 5432 → 50202 [ACK] Seq=1 Ack=74 Win=65536 Len=0 TSval=1550023327 TSecr=1550023327
+6 0.001946467    127.0.0.1 → 127.0.0.1    PGSQL 90 <R
+7 0.001956446    127.0.0.1 → 127.0.0.1    TCP 66 50202 → 5432 [ACK] Seq=74 Ack=25 Win=65536 Len=0 TSval=1550023329 TSecr=1550023329
+8 0.003257297    127.0.0.1 → 127.0.0.1    PGSQL 121 >p
+9 0.003322935    127.0.0.1 → 127.0.0.1    PGSQL 159 <R
+10 0.006092603    127.0.0.1 → 127.0.0.1    PGSQL 175 >p
+11 0.009870369    127.0.0.1 → 127.0.0.1    PGSQL 544 <R/R/S/S/S/S/S/S/S/S/S/S/S/S/S/K/Z
+12 0.010043885    127.0.0.1 → 127.0.0.1    PGSQL 77 >Q
+13 0.010172952    127.0.0.1 → 127.0.0.1    PGSQL 83 <C/Z
+14 0.010215602    127.0.0.1 → 127.0.0.1    PGSQL 105 >Q
+15 0.053339728    127.0.0.1 → 127.0.0.1    TCP 66 5432 → 50202 [ACK] Seq=613 Ack=288 Win=65536 Len=0 TSval=1550023381 TSecr=1550023337
+16 5.054119766    127.0.0.1 → 127.0.0.1    TCP 66 5432 → 50202 [FIN, ACK] Seq=613 Ack=288 Win=65536 Len=0 TSval=1550028381 TSecr=1550023337
+17 5.054178734    127.0.0.1 → 127.0.0.1    TCP 66 50202 → 5432 [FIN, ACK] Seq=288 Ack=614 Win=65536 Len=0 TSval=1550028381 TSecr=1550028381
+18 5.054196344    127.0.0.1 → 127.0.0.1    TCP 66 5432 → 50202 [ACK] Seq=614 Ack=289 Win=65536 Len=0 TSval=1550028381 TSecr=1550028381
+```
+
+---
+
+<span style={{ color: 'blue' }}>解析 pgsql protocol 后的抓包结果如下</span>
+
+```text
+"1"|"0.000000000"|"50202"|"5432"|"0x0002"|"74"||||
+"2"|"0.000023120"|"5432"|"50202"|"0x0012"|"74"||||
+"3"|"0.000039249"|"50202"|"5432"|"0x0010"|"66"||||
+"4"|"0.000088378"|"50202"|"5432"|"0x0018"|"139"|"Startup message"||"user,database,options"|"postgres,test,-c statement_timeout=100000"
+"5"|"0.000096418"|"5432"|"50202"|"0x0010"|"66"||||
+"6"|"0.001946467"|"5432"|"50202"|"0x0018"|"90"|"Authentication request"|||
+"7"|"0.001956446"|"50202"|"5432"|"0x0010"|"66"||||
+"8"|"0.003257297"|"50202"|"5432"|"0x0018"|"121"|"SASLInitialResponse message"|||
+"9"|"0.003322935"|"5432"|"50202"|"0x0018"|"159"|"Authentication request"|||
+"10"|"0.006092603"|"50202"|"5432"|"0x0018"|"175"|"SASLResponse message"|||
+"11"|"0.009870369"|"5432"|"50202"|"0x0018"|"544"|"Authentication request,Authentication request,Parameter status,Parameter status,Parameter status,Parameter status,Parameter status,Parameter status,Parameter status,Parameter status,Parameter status,Parameter status,Parameter status,Parameter status,Parameter status,Backend key data,Ready for query"||"application_name,client_encoding,DateStyle,default_transaction_read_only,in_hot_standby,integer_datetimes,IntervalStyle,is_superuser,server_encoding,server_version,session_authorization,standard_conforming_strings,TimeZone"|",UTF8,ISO, MDY,off,off,on,postgres,on,UTF8,14.19 (Ubuntu 14.19-0ubuntu0.22.04.1),postgres,on,Asia/Shanghai"
+"12"|"0.010043885"|"50202"|"5432"|"0x0018"|"77"|"Simple query"|"BEGIN"||
+"13"|"0.010172952"|"5432"|"50202"|"0x0018"|"83"|"Command completion,Ready for query"|||
+"14"|"0.010215602"|"50202"|"5432"|"0x0018"|"105"|"Simple query"|"SELECT pg_sleep(30), id FROM demo"||
+"15"|"0.053339728"|"5432"|"50202"|"0x0010"|"66"||||
+"16"|"5.054119766"|"5432"|"50202"|"0x0011"|"66"||||
+"17"|"5.054178734"|"50202"|"5432"|"0x0011"|"66"||||
+"18"|"5.054196344"|"5432"|"50202"|"0x0010"|"66"||||
+```
+
+
+### 4.2 抓包解析
+
+从 `Packet 14` 到 `Packet 16`（5秒内），客户端没有发送任何新数据，因为 `ACK` 号一直是 `288`，`Window Size = 65536` 也说明：接收缓冲区有大量空间，如果有数据要发送，早就发送了
+
+`Packet 16`
+执行了 `kill -9` 杀死 `Python` 客户端，客户端进程被强制终止，`TCP` 栈没有机会发送 `FIN` 包
+服务端首先发送 `FIN`，说明服务端检测到连接异常
+
+`Packet 17`
+客户端栈响应,操作系统内核的 TCP 栈代表已死进程完成的四次挥手
+
+`Packet 18`
+连接完全关闭
+
+这里要注意的点：发送缓冲区已清空，内核会选择优雅关闭 `(FIN)`，而不是发送 `(RST)`
+
+```c
+// 简化的内核逻辑
+void tcp_close(struct sock *sk, long timeout)
+{
+    // 1. 检查发送队列
+    if (sk->sk_send_head != NULL) {
+        // 有未发送数据 → 发送 RST
+        tcp_send_active_reset(sk, GFP_ATOMIC);
+        goto adjudge_to_death;
+    }
+
+    // 2. 检查未确认的数据
+    if (tcp_write_queue_empty(sk) == false) {
+        // 有未确认数据 → 发送 RST
+        tcp_send_active_reset(sk, GFP_ATOMIC);
+        goto adjudge_to_death;
+    }
+
+    // 3. 检查接收队列
+    if (sk->sk_receive_queue.qlen > 0) {
+        // 有未读数据 → 发送 RST
+        tcp_send_active_reset(sk, GFP_ATOMIC);
+        goto adjudge_to_death;
+    }
+
+    // 4. 如果以上都清空 → 优雅关闭
+    tcp_send_fin(sk);  // 发送 FIN
+}
+```
+
+
+---
+
+## Experiment-5
+
+实验条件: `select sleep(50)` 小于 `statement timeout 100s` 的超时时间，配置 `ssl=true`，且使用 `kill -9` 强行杀死客户端
+
+* --statementtimeout=100000
+* --connecttimeout=5000
+* --ssl=false
+* --sleep=50
+
+```shell
+// python client 通过 postgres server 来执行 sql: select sleep(50)
+python3 test.py --host=localhost --port=5432 --database=test --user=postgres --password=sunway123 --statementtimeout=100000 --connecttimeout=5000 --ssl=true --sleep=50
+```
+
+### 5.1 抓包结果
+
+<span style={{ color: 'blue' }}>网络层面的抓包结果如下</span>
+
+```text
+1 0.000000000    127.0.0.1 → 127.0.0.1    TCP 74 53738 → 5432 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=1550923127 TSecr=0 WS=128
+2 0.000014909    127.0.0.1 → 127.0.0.1    TCP 74 5432 → 53738 [SYN, ACK] Seq=0 Ack=1 Win=65483 Len=0 MSS=65495 SACK_PERM=1 TSval=1550923127 TSecr=1550923127 WS=128
+3 0.000028690    127.0.0.1 → 127.0.0.1    TCP 66 53738 → 5432 [ACK] Seq=1 Ack=1 Win=65536 Len=0 TSval=1550923127 TSecr=1550923127
+4 0.000064169    127.0.0.1 → 127.0.0.1    PGSQL 74 >
+5 0.000069719    127.0.0.1 → 127.0.0.1    TCP 66 5432 → 53738 [ACK] Seq=1 Ack=9 Win=65536 Len=0 TSval=1550923127 TSecr=1550923127
+6 0.001189904    127.0.0.1 → 127.0.0.1    PGSQL 67 <
+7 0.001250842    127.0.0.1 → 127.0.0.1    TCP 66 53738 → 5432 [ACK] Seq=9 Ack=2 Win=65536 Len=0 TSval=1550923128 TSecr=1550923128
+8 0.003498832    127.0.0.1 → 127.0.0.1    TLSv1 1625 Client Hello
+9 0.003721247    127.0.0.1 → 127.0.0.1    TLSv1.3 165 Hello Retry Request, Change Cipher Spec
+10 0.003860754    127.0.0.1 → 127.0.0.1    TLSv1.3 444 Change Cipher Spec, Client Hello
+11 0.005131915    127.0.0.1 → 127.0.0.1    TLSv1.3 1404 Server Hello, Application Data, Application Data, Application Data, Application Data
+12 0.005935577    127.0.0.1 → 127.0.0.1    TLSv1.3 140 Application Data
+13 0.005984057    127.0.0.1 → 127.0.0.1    TLSv1.3 161 Application Data
+14 0.006022445    127.0.0.1 → 127.0.0.1    TCP 66 5432 → 53738 [ACK] Seq=1439 Ack=2115 Win=65536 Len=0 TSval=1550923133 TSecr=1550923133
+15 0.006702221    127.0.0.1 → 127.0.0.1    TLSv1.3 131 Application Data
+16 0.006745688    127.0.0.1 → 127.0.0.1    TLSv1.3 169 Application Data
+17 0.006785878    127.0.0.1 → 127.0.0.1    TLSv1.3 181 Application Data
+18 0.009291893    127.0.0.1 → 127.0.0.1    TLSv1.3 269 Application Data
+19 0.010317470    127.0.0.1 → 127.0.0.1    TLSv1.3 566 Application Data
+20 0.010449686    127.0.0.1 → 127.0.0.1    TLSv1.3 99 Application Data
+21 0.010581134    127.0.0.1 → 127.0.0.1    TLSv1.3 105 Application Data
+22 0.010611223    127.0.0.1 → 127.0.0.1    TLSv1.3 127 Application Data
+23 0.053390754    127.0.0.1 → 127.0.0.1    TCP 66 5432 → 53738 [ACK] Seq=2158 Ack=2515 Win=65536 Len=0 TSval=1550923181 TSecr=1550923138
+24 5.591853197    127.0.0.1 → 127.0.0.1    TCP 66 5432 → 53738 [FIN, ACK] Seq=2158 Ack=2515 Win=65536 Len=0 TSval=1550928719 TSecr=1550923138
+25 5.591945605    127.0.0.1 → 127.0.0.1    TLSv1.3 90 Application Data
+26 5.591974724    127.0.0.1 → 127.0.0.1    TCP 54 5432 → 53738 [RST] Seq=2159 Win=0 Len=0
+```
+
+---
+
+<span style={{ color: 'blue' }}>开启了 SSL 后还要用 wireshark 来解析 pgsql protocol，比较麻烦，这里不演示</span>
+
+
+### 5.2 抓包解析
+
+主要看 `package 25-26`，因为 `Python` 进程已死，`SSL` 上下文不完整，服务端尝试解密 `SSL` 数据失败导致 `RST` 强行断开连接
+
+这里主要对比和`非SSL`场景对比
+
+- **非 SSL 场景**
+
+```text
+服务端视角：
+1. 检测到连接异常
+2. 发送 FIN
+3. 客户端发送 FIN (四次挥手完成)
+4. 连接优雅关闭
+
+原因：
+- 没有 SSL 层
+- TCP 层状态"干净"
+- 发送缓冲区为空
+- 符合优雅关闭条件
+```
+
+- **SSL 场景**
+
+```text
+服务端视角：
+1. 检测到连接异常
+2. SSL 会话未正常关闭（缺少 close_notify）
+3. 发送 FIN 尝试关闭 TCP
+4. 收到客户端的 SSL 数据（Packet 25）
+5. 协议冲突 → 发送 RST 强制终止
+
+原因：
+- SSL 会话状态不一致
+- 在 FIN_WAIT 状态收到数据
+- 违反 TCP/SSL 协议
+- 必须强制重置
+```
+
+
+## 总结
+
+在当前实验环境中，`RST` 还可以通过编程方式显示触发或者 `iptables reject` 来触发
+
+这里的`python客户端`和`postgres服务端`可以换成任何其他的服务，中间可能还有`firewall/iptables`等等，但万变不离其宗,
+
+`ping, traceroute, ss` 只能告诉你「现象」；`tcpdump` 才能告诉你「原因」, 抓包主要就是抓到底是客户端还是服务端问题，说到底，抓包就是为了知道到底连接是谁主动断开？到底是客户端还是服务端？谁主动断开问题的就在谁那边
+
+- 客户端：客户端有没有真正发出请求？有没有断开连接？有没有重传？
+- 服务端：服务器有没有收到请求？有没有正常回包？是不是超时？
+- 网络：包有没有丢？延迟在哪里？握手是否中断？
+

@@ -24,7 +24,7 @@ https://blog.cloudflare.com/18-november-2025-outage/
 
 这里只讲一下我对 `CF Outage` 的看法。这次故障对一些 `all in cloudflare` 的公司来说，影响非常大，对我们公司官网和一些其他业务造成了影响，但好在运气好，在 `Bot Management` 短暂恢复时间间隔内，我们通过 API 关闭了 `Load Balancing Proxy`，通过强制走 `no-proxy` 的`DNS`解析恢复了访问，宕机时间不到2个钟
 
-网上很多人开玩笑把问题扯到了 `rust unwrap()` 导致的 `panic` 上，其实我觉得更多问题出在了变更规范上，变更人在对 `ClickHouse DB` 进行变更时，不清楚这次变更的影响吗？变更后没有持续观察？流量跌零时没有联想到事故是因为自己的变更导致的吗？没做风险控制和灰度？难不成真的像网上的段子 `First day at Cloudflare, did a small update and took my afternoon off`
+网上很多人开玩笑把问题扯到了 `rust unwrap()` 导致的 `panic` 上，其实我觉得更多问题出在了变更规范上，变更人在对 `ClickHouse DB` 进行变更时，不清楚这次变更的影响吗？变更后没有持续观察？`5xx` 率 `100%` 时没有联想到事故是因为自己的变更导致的吗？没做风险控制和灰度？难不成真的像网上的段子 `First day at Cloudflare, did a small update and took my afternoon off`
 
 `UTC 11:20` 出现问题到 `UTC 14:30` 才找到并解决了根本问题，花了接近 `3` 个钟，估计这个变更人员真的操作完后就去吃饭午休喝咖啡去了LOL
 

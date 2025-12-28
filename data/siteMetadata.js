@@ -3,7 +3,7 @@ const siteMetadata = {
   title: 'Sunway Blog',
   author: 'Sunway',
   headerTitle: 'Sunway Blog',
-  description: 'Sunway Blog - Life / Development / Operations',
+  description: 'Sunway Blog - Life / Dev / Ops',
   language: 'en-us',
   theme: 'system', // system, dark or light
   siteUrl: 'https://sunway.run',

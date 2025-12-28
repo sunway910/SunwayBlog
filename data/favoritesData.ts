@@ -86,7 +86,7 @@ const favoritesData = [
         extensions: '/favorites/blog',
     },
     {
-        title: 'Tool (开发工具)',
+        title: 'Tool (工具)',
         linkList: [
             {
                 title: 'Helm Chart Template',
@@ -190,6 +190,12 @@ const favoritesData = [
                 href: 'https://imagecolorpicker.com/',
                 visit: 'Visit Image Color Picker'
             },
+            {
+                title: '推特视频下载',
+                description: `X video downloader`,
+                href: 'https://twitterxdownload.com/zh-CN',
+                visit: 'X Video Downloader'
+            },
         ],
         imgSrc: '',
         extensions: '/favorites/tool',
@@ -210,12 +216,6 @@ const favoritesData = [
                 visit: 'Visit UglyAvatar'
             },
             {
-                title: '推特视频下载',
-                description: `X video downloader`,
-                href: 'https://twitterxdownload.com/zh-CN',
-                visit: 'X Video Downloader'
-            },
-            {
                 title: 'Subtitle Extractor',
                 description: `先提取字幕阅读，再关闭字幕看片练英语`,
                 href: 'https://www.opensubtitles.org/',
@@ -224,6 +224,85 @@ const favoritesData = [
         ],
         imgSrc: '',
         extensions: '/favorites/fun',
+    },
+    {
+        title: 'Media (影视媒体)',
+        linkList: [
+            {
+                title: '陈一发儿',
+                description: `发姐`,
+                href: 'https://www.youtube.com/@chenyifaer',
+                visit: 'Visit 陈一发儿'
+            },
+            {
+                title: 'Media Storm',
+                description: `影视飓风`,
+                href: 'https://www.youtube.com/@mediastorm6801',
+                visit: 'Visit Media Storm'
+            },
+            {
+                title: 'One Hour English',
+                description: `一小时英语`,
+                href: 'https://www.youtube.com/@onehour_English',
+                visit: 'Visit One Hour English'
+            },
+            {
+                title: 'Ele870',
+                description: `Ele实验室`,
+                href: 'https://www.youtube.com/@ele870',
+                visit: 'Visit Ele870'
+            },
+            {
+                title: '美投新闻',
+                description: `美投君`,
+                href: 'https://www.youtube.com/@MeiTouNews',
+                visit: 'Visit 美投新闻'
+            },
+            {
+                title: 'CYZ Studio',
+                description: `陈一枝`,
+                href: 'https://www.youtube.com/@cyzstudio',
+                visit: 'Visit CYZ Studio'
+            },
+            {
+                title: 'Gao Tian',
+                description: `码农高天`,
+                href: 'https://www.youtube.com/@minkoder',
+                visit: 'Visit Minkoder'
+            },
+            {
+                title: 'Shepherd Capital',
+                description: `金融投资和财经分析`,
+                href: 'https://www.youtube.com/@ShepherdCapital',
+                visit: 'Visit Shepherd Capital'
+            },
+            {
+                title: 'Wilson Vlog',
+                description: `维森旅游 Vlog`,
+                href: 'https://www.youtube.com/@Wilsonarrives',
+                visit: 'Visit Wilson Vlog'
+            },
+            {
+                title: 'Johnny Vlog',
+                description: `小钟旅游 Vlog`,
+                href: 'https://www.youtube.com/@Johnny_vlog',
+                visit: 'Visit Johnny Vlog'
+            },
+            {
+                title: 'Linus Tech Tips',
+                description: `YouTube科技频道，评测各种硬件和科技产品`,
+                href: 'https://www.youtube.com/@LinusTechTips',
+                visit: 'Visit Linus Tech Tips'
+            },
+            {
+                title: '3Blue1Brown',
+                description: `YouTube数学教育频道，用动画解释数学概念`,
+                href: 'https://www.youtube.com/@3blue1brown',
+                visit: 'Visit 3Blue1Brown'
+            },
+        ],
+        imgSrc: '',
+        extensions: '/favorites/media',
     },
 ]
 

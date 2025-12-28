@@ -4,7 +4,8 @@ import {Blog} from 'contentlayer/generated';
 import dayjs from 'dayjs';
 import {truncateSummary} from 'app/utils';
 import Link from '@/components/Link';
-import {useState} from "react";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/vercel_ui/ui/accordion';
+
 
 const blogDateTemplate: Intl.DateTimeFormatOptions = {
     weekday: 'long',
@@ -29,13 +30,7 @@ export default function AuthorLayout({blogs}: Props) {
         }
         blogsSortedByYear[year].push(blog);
     });
-    const [collapsedYears, setCollapsedYears] = useState<{ [key: string]: boolean }>({});
-    const toggleCollapse = (year: string) => {
-        setCollapsedYears((prev) => ({
-            ...prev,
-            [year]: !prev[year],
-        }));
-    };
+
     return (
         <>
             <div className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -44,25 +39,14 @@ export default function AuthorLayout({blogs}: Props) {
                         Archive
                     </h1>
                 </div>
-                {
-                    Object.keys(blogsSortedByYear).map((year) => (
-                        <section key={year}>
-                            <div className="sticky top-0 pt-4 bg-white dark:bg-gray-950 shadow-xl shadow-white dark:shadow-gray-950 z-10">
-                                <h1
-                                    className="text-4xl text-gray-900 dark:text-gray-100 px-3 py-4 font-bold tracking-widest flex items-center justify-between cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200"
-                                    onClick={() => toggleCollapse(year)}
-                                >
+                <Accordion type="multiple" className="w-full">
+                    {
+                        Object.keys(blogsSortedByYear).map((year) => (
+                            <AccordionItem key={year} value={year} className="border-b border-gray-200 dark:border-gray-700">
+                                <AccordionTrigger className="text-4xl text-gray-900 dark:text-gray-100 px-3 py-4 font-bold tracking-widest hover:no-underline hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200 justify-between sticky top-0 bg-white dark:bg-gray-950 shadow-xl shadow-white dark:shadow-gray-950 z-10">
                                     <span>{year}</span>
-                                    <span
-                                        className={`transform transition-transform duration-300 ${
-                                            collapsedYears[year] ? 'rotate-90' : 'rotate-0'
-                                        }`}
-                                    >▶
-                                    </span>
-                                </h1>
-                            </div>
-                            {
-                                !collapsedYears[year] && (
+                                </AccordionTrigger>
+                                <AccordionContent>
                                     <div>
                                         {
                                             blogsSortedByYear[year].map((blog) => (
@@ -76,16 +60,15 @@ export default function AuthorLayout({blogs}: Props) {
                                                             <p className="prose max-w-none text-gray-500 dark:text-gray-400">{truncateSummary(blog.summary)}</p>
                                                         </h3>
                                                     </div>
-
                                                 </div>
                                             ))
                                         }
                                     </div>
-                                )
-                            }
-                        </section>
-                    ))
-                }
+                                </AccordionContent>
+                            </AccordionItem>
+                        ))
+                    }
+                </Accordion>
             </div>
         </>
     )

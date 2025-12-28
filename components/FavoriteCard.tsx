@@ -23,7 +23,7 @@ const FavoriteCard = ({title, linkList, imgSrc, extensions}) => (
                         aria-label={`Link to ${title}`}
                     >
                         <br/>
-                        Get More &rarr;
+                        More &rarr;
                     </Link>
                 )}
             </div>

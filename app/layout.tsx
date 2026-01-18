@@ -58,7 +58,7 @@ export const metadata: Metadata = {
     title: siteMetadata.title,
     description: siteMetadata.description,
     images: [siteMetadata.socialBanner],
-    creator: '@sunwayz911',
+    creator: '@sunwayz365',
   },
   robots: {
     index: true,

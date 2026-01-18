@@ -12,7 +12,7 @@ const siteMetadata = {
   socialBanner: '/static/images/twitter-card.png',
   email: 'shengweizhong910@gmail.com',
   github: 'https://github.com/sunway910',
-  twitter: 'https://x.com/sunwayz911',
+  twitter: 'https://x.com/sunwayz365',
   facebook: 'https://facebook.com',
   youtube: 'https://youtube.com',
   linkedin: 'https://www.linkedin.com/in/sunway-zhong-47b94b257/',

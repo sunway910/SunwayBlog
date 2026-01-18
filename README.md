@@ -96,7 +96,7 @@ authors: ['default']
 I'm Sunway, a software engineer and SRE passionate about cloud native technologies, DevOps practices, and modern web development. You can find me on:
 
 - [GitHub](https://github.com/sunway910)
-- [Twitter/X](https://x.com/sunwayz911)
+- [Twitter/X](https://x.com/sunwayz365)
 - [LinkedIn](https://www.linkedin.com/in/sunway-zhong-47b94b257/)
 - [Blog](https://sunway.run)
 

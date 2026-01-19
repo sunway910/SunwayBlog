@@ -10,7 +10,7 @@ const siteMetadata = {
   siteRepo: 'https://github.com/sunway910/SunwayBlog',
   siteLogo: '/static/images/logo.png',
   socialBanner: '/static/images/twitter-card.png',
-  email: 'shengweizhong910@gmail.com',
+  email: 'sunwayz910@gmail.com',
   github: 'https://github.com/sunway910',
   twitter: 'https://x.com/sunwayz365',
   facebook: 'https://facebook.com',
@@ -19,11 +19,11 @@ const siteMetadata = {
   locale: 'en-US',
   // set to true if you want a navbar fixed to the top
   stickyNav: false,
-  keywords: 'web development, SRE, DevOps, cloud native, programming, technical blog, sunway',
+  keywords: 'Sunway, Sunway blog, blog, Dev, SRE, DevOps',
   openGraph: {
     type: 'website',
-    title: 'Sunway Blog - Web Development & SRE Insights',
-    description: 'Sunway 个人博客，分享日常生活、开发、运维等相关内容'
+    title: 'Sunway Blog - Life / Dev / Ops',
+    description: 'Sunway 的个人博客，分享日常生活、开发、运维等相关内容'
   },
   analytics: {
     // If you want to use an analytics provider you have to add it to the

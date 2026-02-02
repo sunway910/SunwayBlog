@@ -16,8 +16,8 @@ summary: 记录一次使用 pprof 解决连接泄漏的过程
 ## 1. Symptoms
 
 At around 4 pm, we found that the `database qps dropped to 0`, and we also got a webhook alert from cloud platform about `Database connections max limit` and `ALB HTTP 504 error`.
-![DBConnLeak-1](/static/images/GormDBConnLeak/qpsto0.png)
-![DBConnLeak-2](/static/images/GormDBConnLeak/uptomaxconnection.png)
+![DBConnLeak-1](/static/images/2025-05/GormDBConnLeak/qpsto0.png)
+![DBConnLeak-2](/static/images/2025-05/GormDBConnLeak/uptomaxconnection.png)
 
 
 ## 2. Temporary solution
@@ -42,7 +42,7 @@ Through the monitoring panel of grafana, it can be found that `the number of gor
 
 So it is probably `a gorm db connection leak` when use `goroutine` to query something but not close `tx` properly.
 
-![DBConnLeak-3](/static/images/GormDBConnLeak/goroutineMetric.png)
+![DBConnLeak-3](/static/images/2025-05/GormDBConnLeak/goroutineMetric.png)
 
 ## 4. Deeper Investigation Techniques
 
@@ -84,7 +84,7 @@ Finally, we got a goroutine stack trace dump as down below:
 - Function `GetOssSignServiceBk` is the root function that causes the leak
 - `GetOssSignServiceBk` use `tx` but does not `rollback` or `commit` cause `sql (*Tx) awaitDone`
 
-![DBConnLeak-4](/static/images/GormDBConnLeak/goroutinedump.png)
+![DBConnLeak-4](/static/images/2025-05/GormDBConnLeak/goroutinedump.png)
 
 
 ## 5. Source Code Analysis

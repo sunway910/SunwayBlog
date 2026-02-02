@@ -561,15 +561,15 @@ Try to log in `localhost:3000` with default user `admin` and password `admin` if
 
 Import the datasource as below, select the `victoriametrics` as the datasource as default and save it if you set `remote_write` in `prometheus.yml`, otherwise, you can use the default prometheus as the datasource.
 
-![PrometheusDataSource](/static/images/PrometheusDataSource.png)
+![PrometheusDataSource](/static/images/2024-09/PrometheusDataSource.png)
 
 ### 4.2 Import Dashboard
 
 Import the [node exporter full dashboard](https://grafana.com/grafana/dashboards/1860-node-exporter-full/) as below.
 
-![GrafanaNewDashboard1](/static/images/GrafanaNewDashboard1.png)
-![GrafanaNewDashboard2](/static/images/GrafanaNewDashboard2.png)
-![GrafanaNewDashboard3](/static/images/GrafanaNewDashboard3.png)
+![GrafanaNewDashboard1](/static/images/2024-09/GrafanaNewDashboard1.png)
+![GrafanaNewDashboard2](/static/images/2024-09/GrafanaNewDashboard2.png)
+![GrafanaNewDashboard3](/static/images/2024-09/GrafanaNewDashboard3.png)
 
 ### 4.3 Import Alert Rules
 
@@ -577,17 +577,17 @@ Import the [node exporter full dashboard](https://grafana.com/grafana/dashboards
 ```
 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
 ```
-![GrafanaCPURules](/static/images/GrafanaCPURules.png)
+![GrafanaCPURules](/static/images/2024-09/GrafanaCPURules.png)
 #### 4.3.2 Disk Demo Rule
 ```
 # check root path: / and mount path: /mnt/*
 100 - ((node_filesystem_avail_bytes{mountpoint=~"^/$|^/mnt/.*"} / node_filesystem_size_bytes{mountpoint=~"^/$|^/mnt/.*"}) * 100)
 ```
-![GrafanaDiskRules](/static/images/GrafanaDiskRules.png)
+![GrafanaDiskRules](/static/images/2024-09/GrafanaDiskRules.png)
 #### 4.3.3 RAM Demo Rule
 ```
 100 - ((node_memory_MemAvailable_bytes * 100) / node_memory_MemTotal_bytes)
 ```
-![GrafanaRAMRules](/static/images/GrafanaRAMRules.png)
+![GrafanaRAMRules](/static/images/2024-09/GrafanaRAMRules.png)
 
 

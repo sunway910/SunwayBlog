@@ -22,7 +22,7 @@ summary: 家庭网络改造计划，软路由踩坑记
 
 **Openwrt 系统安装完成后，进入管理界面如下图所示：**
 
-![XiaomiRouter4cOpenwrt](/static/images/XiaomiRouter4cOpenwrt.png)
+![XiaomiRouter4cOpenwrt](/static/images/2024-02/XiaomiRouter4cOpenwrt.png)
 
 如上图所示，`Xiaomi 4C` 的 `overlay` 分区只有不到 10M，根本没有足够的存储空间安装 `V2ray OpenClash` 等插件，有人也遇到了[同样的问题](https://github.com/vernesong/OpenClash/discussions/2937)
 
@@ -69,14 +69,14 @@ summary: 家庭网络改造计划，软路由踩坑记
 
 至此，我可以在我的电脑上通过访问 `192.168.1.1` 访问光猫的管理控制台，可以通过 `192.168.2.1` 访问软路由 `OpenWRT` 的管理控制台
 
-![SuLinGGOpenwrt](/static/images/SuLinGGOpenwrt.png)
+![SuLinGGOpenwrt](/static/images/2024-02/SuLinGGOpenwrt.png)
 
 **踩坑如下：**
 
 1: 按 `F2` 进入 `PW-550` 的 `BIOS`，不是 `Delete F11` ......
 
 2: 刷成软路由后，`WAN口` 和 `LAN口` 是由软件定义的，如果电脑通过网线连接软路由后获得IP为 `169.254.x.x/16` 则说明线接错口了，可以在软路由的终端通过 `ip a` 命令查看软路由是否通过`DHCP`从光猫获取到了`WAN口 IP`，至于为什么从 `dhcp` 获取`IP`失败后会 拿到一个 `169.254.x.x/16` 的 `Ip` 可以自行查阅
-![OpenWRTIPA](/static/images/OpenWRTIPA.png)
+![OpenWRTIPA](/static/images/2024-02/OpenWRTIPA.png)
 
 
 **`SuLinGG` 开源的固件到 `18.06` 版本就不再更新了，官网最新的 `ImortalWRT X86` 固件已经升级到了 `23.05` 版本了，版本落后太多，而且安装到我的小主机上时出现了一些小问题，最终还是放弃了这个固件**
@@ -84,15 +84,15 @@ summary: 家庭网络改造计划，软路由踩坑记
 **如下图所示，系统日志发现这个开源的`18.06`版本无法执行某些 `cron Job`；无法打开 `ttyd` 终端，`192.168.2.1:7681` ttyd服务启动失败；集成了太多的我不需要的插件...**
 
 **日志错误如下图所示**
-![SuLinGGLogErr](/static/images/SuLinGGLogErr.png)
+![SuLinGGLogErr](/static/images/2024-02/SuLinGGLogErr.png)
 
 **功能集成如下图所示**
 <center >
     <figure>
-        <img  style={{margin: "0 ", display: "inline-block "}} src="/static/images/SuLinGGMenu1.png" width="175" />
-        <img  style={{margin: "0 ", display: "inline-block "}} src="/static/images/SuLinGGMenu2.png" width="175"/>
-        <img  style={{margin: "0 ", display: "inline-block "}} src="/static/images/SuLinGGMenu3.png" width="175"/>
-        <img  style={{margin: "0 ", display: "inline-block "}} src="/static/images/SuLinGGMenu4.png" width="175"/>
+        <img  style={{margin: "0 ", display: "inline-block "}} src="/static/images/2024-02/SuLinGGMenu1.png" width="175" />
+        <img  style={{margin: "0 ", display: "inline-block "}} src="/static/images/2024-02/SuLinGGMenu2.png" width="175"/>
+        <img  style={{margin: "0 ", display: "inline-block "}} src="/static/images/2024-02/SuLinGGMenu3.png" width="175"/>
+        <img  style={{margin: "0 ", display: "inline-block "}} src="/static/images/2024-02/SuLinGGMenu4.png" width="175"/>
     </figure>
 </center>
 
@@ -103,7 +103,7 @@ summary: 家庭网络改造计划，软路由踩坑记
 
 
 - **步骤1:** 因为U盘中已经刷入了 `SuLinGG 18.06 X86` 的系统了，所以需要先安装 [rufus](https://rufus.ie/en/) 把 `U盘` 刷成非引导盘
-![RufusClean](/static/images/RufusClean.png)
+![RufusClean](/static/images/2024-02/RufusClean.png)
 
 - **步骤2:** 用 [etcher](https://etcher.balena.io/) 或者 [rufus](https://rufus.ie/en/) 将官方最新的固件烧录到U盘
 
@@ -117,7 +117,7 @@ summary: 家庭网络改造计划，软路由踩坑记
 
 刷成官方最新的 `23.05` 版本如下图所示
 
-![ImmortalWRT2305](/static/images/ImmortalWRT2305.png)
+![ImmortalWRT2305](/static/images/2024-02/ImmortalWRT2305.png)
 
 
 ## 3 Pass Wall Configuration
@@ -129,18 +129,18 @@ summary: 家庭网络改造计划，软路由踩坑记
 - **步骤2:** 搜索 `OpenClash` 并安装 `openclash` 客户端
 
 - **步骤3:** 在客户端界面安装 `clash` 内核
-![OpenClashCoreConfig](/static/images/OpenClashCoreConfig.png)
+![OpenClashCoreConfig](/static/images/2024-02/OpenClashCoreConfig.png)
 
 - **步骤4:** 导入自建的 `vmess` 节点
-![OpenClashConfig](/static/images/OpenClashConfig.png)
+![OpenClashConfig](/static/images/2024-02/OpenClashConfig.png)
 
 - **步骤5:** 启动OpenClash，查看是否启动正常，启动成功后可通过 `http://192.168.2.1:9090` 访问 `OpenClash` 的 `DashBoard` 查看相关配置
-![OpenClashDashboard](/static/images/OpenClashDashboard.png)
+![OpenClashDashboard](/static/images/2024-02/OpenClashDashboard.png)
 
 - **步骤6:** 由于`PW-550`没有 `WIFI功能`，所以将网线从 `PW-550 LAN 口` 接到 `Xiaomi Router 4C WAN 口`，登录小米路由器的`管理界面`或者`terminal`，配置WIFI功能并将小米路由器的LAN口网段改为 `192.168.3.1/24`
 
 - **步骤7:** 将电脑连接至小米路由器的WIFI，通过 ipconfig 查看分配的IP是否为 `192.168.3.1/24`
-![XiaomiWifiIPConfig](/static/images/XiaomiWifiIPConfig.png)
+![XiaomiWifiIPConfig](/static/images/2024-02/XiaomiWifiIPConfig.png)
 
 - **步骤8:** 关闭电脑的所有代理工具，测试只通过连接小米路由器的WIFI是否能科学上网
 

@@ -32,7 +32,7 @@ summary: IPSec VPN With Fortigate
 **更新 key（ rekey ）** ：IPSec 隧道建立后，每过一段时间，或经过一定量的数据，就会进行 rekey 操作。VPN 设备有修改 rekey 时间的功能
 
 
-![SourceImgFromAliCloud](/static/images/IPSecVPN/AliCloud-VPN-Use.png)
+![SourceImgFromAliCloud](/static/images/2025-07/IPSecVPN/AliCloud-VPN-Use.png)
 
 **IPSec-VPN 实现本地 IDC 和云上 VPC 互联**
 
@@ -62,30 +62,30 @@ summary: IPSec VPN With Fortigate
 
 <span style={{ color: 'red' }}>1: 图中 port2 对应 lan口 ，port1 对应 wan口</span>
 
-![](/static/images/IPSecVPN/SitetoSite-ipsec.png)
+![](/static/images/2025-07/IPSecVPN/SitetoSite-ipsec.png)
 
 <span style={{ color: 'red' }}>2: 配置 Port2（LAN口） 到 Port1（WAN口）的 Policy，内网出公网的策略</span>
 
-![](/static/images/IPSecVPN/port2-port1-policy.png)
+![](/static/images/2025-07/IPSecVPN/port2-port1-policy.png)
 
 <span style={{ color: 'red' }}>3: 配置 fortigate port2 到 IPSec tunnel 的 policy，我方到对方的策略</span>
 
-![](/static/images/IPSecVPN/port2-ipsec-tunnel-policy.png)
+![](/static/images/2025-07/IPSecVPN/port2-ipsec-tunnel-policy.png)
 
 <span style={{ color: 'red' }}>4: 配置 IPSec tunnel 到 fortigate port2 的 policy，对方到我方的策略</span>
 
-![](/static/images/IPSecVPN/ipsec-tunnel-port2.png)
+![](/static/images/2025-07/IPSecVPN/ipsec-tunnel-port2.png)
 
 <span style={{ color: 'red' }}>5: 配置 IPSec tunnel 到目标子网的静态路由，对方内网的网段</span>
 
-![](/static/images/IPSecVPN/ipsec-static-route.png)
+![](/static/images/2025-07/IPSecVPN/ipsec-static-route.png)
 
 ------------
 
 
 ## 2.2 Dial up Mode
 **图中 port2 对应 lan口 ，port1 对应 wan口**
-![](/static/images/IPSecVPN/dialup-ipsec.png)
+![](/static/images/2025-07/IPSecVPN/dialup-ipsec.png)
 
 路由配置与`site-to-site`一致
 

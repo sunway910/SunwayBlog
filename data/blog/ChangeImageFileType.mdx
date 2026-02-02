@@ -23,12 +23,12 @@ summary: 镜像类型转换
 
 2. 按照默认选项进行操作直至完成
 
-![clone-vm](/static/images/ChangeImageFileType/clone-vm.png)
+![clone-vm](/static/images/2025-07/ChangeImageFileType/clone-vm.png)
 
 
 ## 3 Merge VMDK Files
 
-![cd-vmare-dir](/static/images/ChangeImageFileType/cd-vmare-dir.png)
+![cd-vmare-dir](/static/images/2025-07/ChangeImageFileType/cd-vmare-dir.png)
 
 1. 在命令提示符(`CMD`)中导航到`VMware`安装目录：
 ```bash
@@ -39,7 +39,7 @@ cd C:\Program Files (x86)\VMware\VMware Workstation
 vmware-vdiskmanager.exe -r "C:\Users\Administrator\Documents\Virtual Machines\CentOS_7_64_clone\CentOS_7_64 位-cl1.vmdk" -t 0 "C:\Users\Administrator\Documents\Virtual Machines\CentOS_7_64_clone\summary.vmdk"
 ```
 
-![clone-result](/static/images/ChangeImageFileType/clone-result.png)
+![clone-result](/static/images/2025-07/ChangeImageFileType/clone-result.png)
 
 ## 4 Install qemu-img
 
@@ -53,7 +53,7 @@ vmware-vdiskmanager.exe -r "C:\Users\Administrator\Documents\Virtual Machines\Ce
 
 以阿里云为例，阿里云支持的镜像类型
 
-![alicloud-support-image-type](/static/images/ChangeImageFileType/alicloud-support-image-type.png)
+![alicloud-support-image-type](/static/images/2025-07/ChangeImageFileType/alicloud-support-image-type.png)
 
 
 
@@ -78,4 +78,4 @@ qemu-img convert -c -f vmdk -O qcow2 summary.vmdk centos7_custom.qcow2
 
 ## 7 Use Custom Image
 
-![use-custom-image-create-ecs](/static/images/ChangeImageFileType/use-custom-image-create-ecs.png)
+![use-custom-image-create-ecs](/static/images/2025-07/ChangeImageFileType/use-custom-image-create-ecs.png)

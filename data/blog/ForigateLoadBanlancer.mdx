@@ -11,25 +11,25 @@ summary: Use Fortigate To Implement A Load Balancer
 ## 1 Enable Load Balance Feature
 
 
-![EnableLoadBalanceFeature](/static/images/EnableLoadBalanceFeature.png)
+![EnableLoadBalanceFeature](/static/images/2024-03/EnableLoadBalanceFeature.png)
 
 ## 2 Import a Certificate
 
 You can import your own certificate to implement your custom https connection
 
-![FortiImportCA](/static/images/FortiImportCA.png)
+![FortiImportCA](/static/images/2024-03/FortiImportCA.png)
 
 
 ## 3 Create a Virtual Server
 
 ### Create a http virtual server
 If you do not have your own certificate and do not want to use fortigate default certificate, you can set to `http` type
-![FortiVirtualServer](/static/images/FortiVirtualServer.png)
+![FortiVirtualServer](/static/images/2024-03/FortiVirtualServer.png)
 
 
 ### Create a https virtual server
 If you import your own certificate, your can set to `https` type and select your own certificate; otherwise, your can use fortigate default certificate to implement a https connection
-![FortiVirtualServerHttps](/static/images/FortiVirtualServerHttps.png)
+![FortiVirtualServerHttps](/static/images/2024-03/FortiVirtualServerHttps.png)
 
 **SSL Mode:**
 - `Client <-> FortiGate`: Client(https) --> Fortigate(https) --> Server(http)
@@ -39,13 +39,13 @@ If you import your own certificate, your can set to `https` type and select your
 
 Add a Firewall Policy to redirect 80 to 443 so that client can auto access to https://uat.example.com from  http://uat.example.com
 
-![Forti80To443](/static/images/Forti80To443.png)
+![Forti80To443](/static/images/2024-03/Forti80To443.png)
 
 ## 5 Use virtual server to create firewall policy
 
 You must select `Proxy-based` mode so that you can find `virtual server` in policy `Destination`
 
-![FortiVirtualServerPolicy](/static/images/FortiVirtualServerPolicy.png)
+![FortiVirtualServerPolicy](/static/images/2024-03/FortiVirtualServerPolicy.png)
 
 ## 6 Add DNS Record
 
@@ -54,7 +54,7 @@ Add `uat.example.com` and `prd.example.com`'s type A resolution to Fortigate WAN
 ## 7 Summary
 Finally, you can implement an architecture like that:
 
-![FortiVirtualServerArchitecture](/static/images/FortiVirtualServerArchitecture.png)
+![FortiVirtualServerArchitecture](/static/images/2024-03/FortiVirtualServerArchitecture.png)
 
 In my case, the IP `10.210.0.2` is a real server in internal network, but IP `10.210.11.170` is a SLB in AlibabaCloud
 

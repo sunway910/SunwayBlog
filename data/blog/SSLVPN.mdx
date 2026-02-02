@@ -18,7 +18,7 @@ summary: SSL VPN with Fortigate
 
 相比`IPsec-VPN`，`SSL-VPN`数据吞吐量较低，但其不受限于`MTU`，也不受操作系统和`NIC`网卡驱动的限制
 
-![AliCloud-VPN-Use](/static/images/SSLVPN/AliCloud-VPN-Use.png)
+![AliCloud-VPN-Use](/static/images/2025-07/SSLVPN/AliCloud-VPN-Use.png)
 
 **应用场景：如公司员工通过`SSL-VPN`：连接公司内网实现远程办公/访问内网服务器实现本地运维等**
 
@@ -34,13 +34,13 @@ summary: SSL VPN with Fortigate
 
 主网卡即用于访问外部互联网，辅助网卡一般用于`VPC`内网互联
 
-![SSL-VPN-Settings](/static/images/SSLVPN/SSL-VPN-Settings.png)
+![SSL-VPN-Settings](/static/images/2025-07/SSLVPN/SSL-VPN-Settings.png)
 
 ## 2.2 User Group Setting
 
 ### 2.2.1 create user group
 
-![User-Group-Settings](/static/images/SSLVPN/User-Group-Settings.png)
+![User-Group-Settings](/static/images/2025-07/SSLVPN/User-Group-Settings.png)
 
 
 ------------
@@ -49,7 +49,7 @@ summary: SSL VPN with Fortigate
 
 **查看 `Fortigate` 上 `SSL-VPN` 统计信息：`diagnose vpn ssl statistics`**
 
-![ssl-vpn-maxconn](/static/images/SSLVPN/ssl-vpn-maxconn.png)
+![ssl-vpn-maxconn](/static/images/2025-07/SSLVPN/ssl-vpn-maxconn.png)
 
 **这里显示最多 5 个用户 68 个连接其实是错的，不知道官方提供这个这个命令的作用**
 
@@ -104,7 +104,7 @@ end
 
 
 **Step3**: 通过 `Scripts` 功能上传并运行脚本
-![run-script](/static/images/SSLVPN/run-script.png)
+![run-script](/static/images/2025-07/SSLVPN/run-script.png)
 
 
 ```python
@@ -206,7 +206,7 @@ sunway5, 123456
 
 > Client ------>`SSL-VPN-Tunnel`-------> `(Fortigate WAN) port1`-------->`(Fortigate LAN) port2`-------> Internal Network
 
-![CreateFireWallPolicy](/static/images/SSLVPN/CreateFireWallPolicy.png)
+![CreateFireWallPolicy](/static/images/2025-07/SSLVPN/CreateFireWallPolicy.png)
 
 
 ---
@@ -218,7 +218,7 @@ sunway5, 123456
 
 * 如果 `Fortigate` 部署在云服务上，则需要配置安全组放行，`Fortigate` 安全组一般情况下默认全部端口全部协议都放行
 
-![UseFortigateSSLVPN](/static/images/SSLVPN/UseFortigateSSLVPN.png)
+![UseFortigateSSLVPN](/static/images/2025-07/SSLVPN/UseFortigateSSLVPN.png)
 
 登录后可[下载](https://www.fortinet.com/support/product-downloads) `Forticlient` 至本地，使用之前配置的用户名密码连接即可
 

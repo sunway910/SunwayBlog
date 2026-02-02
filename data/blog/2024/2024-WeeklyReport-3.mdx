@@ -18,7 +18,7 @@ summary: 2024第3周周报
 最后我登录到DNS域名控制台才破案，发现这个客户设置了2条独立的 SPF 解析，不同的SPF解析会冲突，导致发信时随机解析一个SPF解析，对的就发信成功，不对的就发信失败，只能删掉1条，或者合并成1条。
 
 dig 排查的时候看到太多 txt 解析了，密密麻麻的输出让我没注意到有2条SPF解析，到控制台看的时候才发现问题，又多走了一段弯路...
-![SPFDuplicate](/static/images/SPFDuplicate.png)
+![SPFDuplicate](/static/images/2024-01/SPFDuplicate.png)
 
 
 解决方法：将2条合并成一条 `v=spf1 ip4:1.1.1.1/26 ip4:2.2.2.2 include:spfdm-ap1x.com include:spfdm-ap2x.com ~all`
@@ -51,7 +51,7 @@ PS: 这个券商客户直接把DNS控制台的账密给我去操作，而且变�
 - 毕业快2年，一位舍友马上要结婚了，还有一位也开始被家里安排相亲了，时间真的很快...
 - 家里的 老 Giant 山地车好久没保养了，好像快不行了，打算去入门公里车了
 - 家里原先的办公桌太短了，放不下多个外接屏；简单地设计了一张办公桌，去买了4块木板和一些直角固定支架后手工拼了一张办公桌，钉钉子和拧螺丝真的搞到手痛，感觉我可以去做木匠了doge
-![WoodTable](/static/images/WoodTable.jpg)
+![WoodTable](/static/images/2024-01/WoodTable.jpg)
 
 
 

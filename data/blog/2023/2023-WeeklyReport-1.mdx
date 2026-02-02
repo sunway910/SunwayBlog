@@ -49,7 +49,7 @@ location /test/ {
 
 问题： `Redhat Enterprise 8.8` SSH登录时发现执行/etc/profile*时卡住，`Control+C` 强制退出初始化过程会导致 hostname 异常显示，很多 env alias 等初始化配置都被打断无法正常使用，**但实际业务进程没有问题**
 
-![bash4.4](/static/images/bash4_4err.png)
+![bash4.4](/static/images/2023-12/bash4_4err.png)
 
 
 在/etc/profile*中打`echo`断点发现初始化实际是卡在了：/etc/bash_completion.d/gluster 中执行的 `pidof glusterfs` 命令
@@ -58,7 +58,7 @@ location /test/ {
 
 > /proc/pid/cmdline 文件包含了进程的完整命令行，包括执行文件的路径和参数。这个文件中的命令行参数是由空字符('\0')分隔的一组字符串，最后还有一个额外的空字符。这个文件的作用是让用户可以查看正在运行的进程的完整命令行信息。
 
-![strace_hang](/static/images/strace_hang.png)
+![strace_hang](/static/images/2023-12/strace_hang.png)
 
 然后进一步发现不光是 `pidof` 命令的参数无法读取，很多如 `ps ss netstat` 等命令在带参数执行时都会卡住
 

@@ -26,15 +26,15 @@ summary: 2024第1周周报
 在Forti上 Debug 发现流量从 `Port1(WAN口)` 进来后，又从 `Port1(WAN口)` 出去了，没有匹配策略流向 `Port2(LAN口)` 进入内网，最终的结果就是被默认策略 Policy 0 拒绝， Debug 效果如下图所示：
 
 
-<img  style={{margin: "0 ", display: "inline-block "}} src="/static/images/FotigatePort1ToPort1.png" width="700" />
+<img  style={{margin: "0 ", display: "inline-block "}} src="/static/images/2024-01/FotigatePort1ToPort1.png" width="700" />
 
 百思不得其解，为什么写了流量策略却根本没有命中策略，流量根本去到内网；而直接转发到服务器上却没有任何问题，导致我这个猪比在Forti和SLB做了半天无用功
 
 最终发现 原来 Fortigate WAN口 的网段和 SLB 的网段重叠了，**所有访问 10.210.8.0/24 和 10.210.9.0/24 网段的流量都是直连的，** 不会走自定义策略
 
-<img  style={{margin: "0 ", display: "inline-block "}} src="/static/images/FortigateRouteDefault.png" width="800"/>
+<img  style={{margin: "0 ", display: "inline-block "}} src="/static/images/2024-01/FortigateRouteDefault.png" width="800"/>
 
-![SLBAfterFortigate](/static/images/SLBAfterFortigate.png)
+![SLBAfterFortigate](/static/images/2024-01/SLBAfterFortigate.png)
 
 总结： SLB的IP `10.210.8.117`和Fortigate的WAN口的私网地址 `10.210.8.1`都处于`10.210.8.0/24`网段；创建SLB时没注意绑定的交换机，把`SLB`和`Fortigate`的绑定到同一个交换机上去了
 

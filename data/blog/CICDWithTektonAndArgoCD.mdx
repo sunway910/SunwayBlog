@@ -1845,7 +1845,7 @@ data:
 
 </details>
 
-![ArgoNotificationSubscription](/static/images/ArgoNotificationSubscription.png)
+![ArgoNotificationSubscription](/static/images/2024-12/ArgoNotificationSubscription.png)
 
 ## 3 Create Ingress
 
@@ -1933,7 +1933,7 @@ spec:
 ### 4.1 Add Others Kubernetes Clusters
 
 Add Clusters which your want to deploy, so that you can [deploy service on multiple kubernetes cluster](https://devopscube.com/configure-multiple-kubernetes-clusters-argo-cd/)
-![ArgocdAddCluster](/static/images/ArgocdAddCluster.png)
+![ArgocdAddCluster](/static/images/2024-10/ArgocdAddCluster.png)
 
 - **Step 1:** Login to Argo CD
 Make sure that you have updated the cluster details to the `kubeconfig` file and logged into Argo CD using Argo CD CLI, if not run the following command to log in to Argo CD.
@@ -1966,7 +1966,7 @@ This command will create a `service account Argo CD-manager` on the cluster you 
 
 connect to a private repo via ssh as below
 
-![ArgocdNewRepo](/static/images/ArgocdNewRepo.png)
+![ArgocdNewRepo](/static/images/2025-05/ArgocdNewRepo.png)
 
 ### 4.3 Create An Application
 ```yaml
@@ -1990,8 +1990,8 @@ spec:
       prune: false
       selfHeal: false
 ```
-![ArgoCDCreateApp1](/static/images/ArgoCDCreateApp1.jpg)
-![ArgoCDCreateApp2](/static/images/ArgoCDCreateApp2.jpg)
+![ArgoCDCreateApp1](/static/images/2024-10/ArgoCDCreateApp1.jpg)
+![ArgoCDCreateApp2](/static/images/2024-10/ArgoCDCreateApp2.jpg)
 
 ## 5 Github Webhook
 Set github webhook to tekton eventListener as below
@@ -2001,7 +2001,7 @@ Payload URL: https://git-listener-cicd-demo.sunway.run/github
 Content type: application/json
 Secret: sunway123
 ```
-![TektonGitWebhook](/static/images/TektonGitWebhook.png)
+![TektonGitWebhook](/static/images/2024-10/TektonGitWebhook.png)
 
 
 ## 6 Testing
@@ -2010,7 +2010,7 @@ You can see your application after you create your own application at `4.3`
 
 Application indicate `processing` cause argocd cant check the `ingress` health, it is a normal status if you use `nginx ingress` or something else. [ [ref1](https://argo-cd.readthedocs.io/en/stable/faq/#why-is-my-application-stuck-in-progressing-state), [ref2](https://docs.nginx.com/nginx-ingress-controller/configuration/global-configuration/reporting-resources-status/) ]
 
-![ArgocdAppProcessing](/static/images/ArgocdAppProcessing.png)
+![ArgocdAppProcessing](/static/images/2024-10/ArgocdAppProcessing.png)
 
 After you check application is healthy, you can **push code to your GitHub repo** and then check `pipelineRun` on Tekton Dashboard.
 

@@ -26,11 +26,11 @@ summary: 2023-12月第二周总结
 
 如下图所示，每次对端（服务器）ack 后，健康检查组件（客户端）就会主动发送 `Reset` 包来关闭 `TCP连接` 了
 
-![AlbTCPHealthCheck](/static/images/AlbTCPHealthCheck.png)
+![AlbTCPHealthCheck](/static/images/2023-12/AlbTCPHealthCheck.png)
 
 这个两次握手就会导致一个问题：当对Netty后端进行TCP类型的健康检查时就会出现以下报错
 
-![NettyErr](/static/images/NettyErr.png)
+![NettyErr](/static/images/2023-12/NettyErr.png)
 
 其实这个问题很早之前就在Netty社区讨论过：[https://github.com/netty/netty/issues/6029](https://github.com/netty/netty/issues/6029)
 

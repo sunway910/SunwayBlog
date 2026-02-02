@@ -130,7 +130,7 @@ You can also create multiple CNAME records targeting the same Tunnel, if desired
 
 Alternatively, you can perform this step from the command line by running cloudflared tunnel route dns `<tunnel>` `<hostname>`. For example, cloudflared tunnel route dns example-tunnel tunnel.example.com. You can use a similar method to route traffic to cloudflared from [a Cloudflare Load Balancer](https://www.cloudflare.com/zh-cn/application-services/products/load-balancing/), see docs for details.
 
-![CloudflaredCname](/static/images/CloudflaredCname.png)
+![CloudflaredCname](/static/images/2024-05/CloudflaredCname.png)
 
 ------------
 
@@ -410,7 +410,7 @@ Now access to `k8smaster.example.com`, `k8snode1.example.com`, `k8snode2.example
 
 you can get content like that:
 
-![CloudflareHttpbin](/static/images/CloudflareHttpbin.png)
+![CloudflareHttpbin](/static/images/2024-05/CloudflareHttpbin.png)
 
 ---
 
@@ -514,7 +514,7 @@ You can set a subdomain proxy by cloudflare and a subdomain do not proxy by clou
 
 The system architecture can be illustrated as below
 
-![CloudflareLBwithK8s](/static/images/CloudflareLBwithK8s.png)
+![CloudflareLBwithK8s](/static/images/2024-05/CloudflareLBwithK8s.png)
 
 Get more info: https://www.cloudflare.com/integrations/kubernetes/
 
@@ -523,7 +523,7 @@ Get more info: https://www.cloudflare.com/integrations/kubernetes/
 
 <span style={{color: 'blue'}}> Create a probe for cluster entrance as below: </span>
 
-![CFLBProbe](/static/images/CFLBProbe.png)
+![CFLBProbe](/static/images/2024-05/CFLBProbe.png)
 
 ---
 
@@ -531,11 +531,11 @@ Get more info: https://www.cloudflare.com/integrations/kubernetes/
 
 <span style={{color: 'blue'}}> Now, you can create 4 pools for for each cluster entrance </span>
 
-![CFloadbalancePool](/static/images/CFloadbalancePool.png)
+![CFloadbalancePool](/static/images/2024-05/CFloadbalancePool.png)
 
 <span style={{color: 'blue'}}> Each Pool have a entrance ip (origin address) of a k8s cluster </span>
 
-![CFLBPoolInfo](/static/images/CFLBPoolInfo.png)
+![CFLBPoolInfo](/static/images/2024-05/CFLBPoolInfo.png)
 
 
 ---
@@ -546,11 +546,11 @@ Get more info: https://www.cloudflare.com/integrations/kubernetes/
 
 [How to config webhook and email alert in cloudflare](https://developers.cloudflare.com/notifications/get-started/configure-webhooks/)
 
-![CFWebookEmail](/static/images/CFWebookEmail.png)
+![CFWebookEmail](/static/images/2024-05/CFWebookEmail.png)
 
 **After config webhook or email successfully, you can create `A Health Alert` and `a Pool Enablement Alert Manage` in each pool**
 
-![CFLBAlert](/static/images/CFLBAlert.png)
+![CFLBAlert](/static/images/2024-05/CFLBAlert.png)
 
 ---
 
@@ -559,15 +559,15 @@ Get more info: https://www.cloudflare.com/integrations/kubernetes/
 
 <span style={{color: 'red'}}>Create a load balancer as below:</span>
 
-![CreateCFLB](/static/images/CreateCFLB.png)
+![CreateCFLB](/static/images/2024-05/CreateCFLB.png)
 
 <span style={{color: 'red'}}>Set 4 pools to origin pools:</span>
 
-![SetPoolInLB](/static/images/SetPoolInLB.png)
+![SetPoolInLB](/static/images/2024-05/SetPoolInLB.png)
 
 I easily set traffic steering to: `Dynamic steering: Route traffic to the fastest pool based on measured latency from health checks.`
 
-![CFLBPolicy](/static/images/CFLBPolicy.png)
+![CFLBPolicy](/static/images/2024-05/CFLBPolicy.png)
 
 
 ### 3.5 Test for LoadBalancer

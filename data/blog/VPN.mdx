@@ -19,7 +19,7 @@ lastmod: '2024-05-16'
 ### 1.1 安装 cloudflare Warp 客户端
 * [首先安装对应的客户端](https://1.1.1.1 "安装对应的客户端")
 
-![Cloudflare installtion](/static/images/CloudflareInstall.png)
+![Cloudflare installtion](/static/images/2023-12/CloudflareInstall.png)
 
 ### 1.2 获取密钥
 Telegram搜索: `@generatewarpplusbot` or 直接访问 [telegram机器人](https://t.me/generatewarpplusbot)，然后按照以下步骤获取 key 和 conf 文件
@@ -29,7 +29,7 @@ Telegram搜索: `@generatewarpplusbot` or 直接访问 [telegram机器人](https
 * /generate
 * /generate $result (Calculate $result and then auto generate key and conf file)
 
-![warp bot](/static/images/warpbot.png)
+![warp bot](/static/images/2023-12/warpbot.png)
 
 
 
@@ -37,7 +37,7 @@ Telegram搜索: `@generatewarpplusbot` or 直接访问 [telegram机器人](https
 
 通过客户端的 `偏好设置` 功能配置 telegram bot 生成的 key
 
-![Cloudflare Setting](/static/images/CloudflareSetting.png)
+![Cloudflare Setting](/static/images/2023-12/CloudflareSetting.png)
 
 **成功后可获取24PB的免费流量，1个key可供5台设备使用；默认代理到香港节点，不解锁 chatgpt netflix 等资源**
 
@@ -56,7 +56,7 @@ Telegram搜索: `@generatewarpplusbot` or 直接访问 [telegram机器人](https
 - 然后等待结果，会提示测试结果已经写入result.csv
 - 打开文件夹里面的result.csv，里面是优选好的IP，按照丢包和ping延迟排序，选择延迟最低的1个如：`162.159.192.63:943`
 
-![wire_guard good ip](/static/images/wireguardgoodip.png)
+![wire_guard good ip](/static/images/2023-12/wireguardgoodip.png)
 
 
 ### 2.2 安装并配置wireguard
@@ -67,7 +67,7 @@ Telegram搜索: `@generatewarpplusbot` or 直接访问 [telegram机器人](https
 
 修改配置文件中的`endpoint`为刚刚生成的延迟最低的 `ip:port`
 
-![Wireguard Setting](/static/images/WireguardSetting.png)
+![Wireguard Setting](/static/images/2023-12/WireguardSetting.png)
 
 **最后启用连接即可，如此实现更流畅的访问，但使用这些`优选的IP`进行代理极有可能仍然无法解锁 Chatgpt Tiktok Netflix...**
 
@@ -96,7 +96,7 @@ Telegram搜索: `@generatewarpplusbot` or 直接访问 [telegram机器人](https
 - 如果你从别的渠道获取的`warp key`，想要自己生成wireguard配置文件，[可以使用这个网站](https://replit.com/@ygkkkk/WARP-Wireguard-Register)
 - 首先输入2，然后输入2，将我们获取的 key 填写进去，即可生成对应 wireguard 配置文件
 
-![Warp Wireguard Register](/static/images/WarpWireguardRegister.png)
+![Warp Wireguard Register](/static/images/2023-12/WarpWireguardRegister.png)
 
 
 
@@ -192,7 +192,7 @@ $ curl -sSL https://github.com/seagullz4/hysteria2/raw/main/install.sh -o instal
 
 **经历了 `2023-11 CFW` 的事件后，很多作者都将开源项目删库或归档了，需要的话可以github找别人的fork或者backup**
 
-![DeleteClient](/static/images/DeleteClient.png)
+![DeleteClient](/static/images/2023-12/DeleteClient.png)
 
 [可以顺便看看 Tuic 作者的这篇文章，振聋发聩](https://www.eaimty.com/2023/opensource-project-based-on-hormone/)
 
@@ -202,7 +202,7 @@ $ curl -sSL https://github.com/seagullz4/hysteria2/raw/main/install.sh -o instal
 
 `vmess`可以通过 https://v1.v2rayse.com/v2ray-clash 转为 `clash.yaml` 配置文件，将多个节点写到同一个yaml可以很方便地进行节点切换
 
-![V2rayToClash](/static/images/V2rayToClash.png)
+![V2rayToClash](/static/images/2023-12/V2rayToClash.png)
 
 
 
@@ -215,7 +215,7 @@ $ curl -sSL https://github.com/seagullz4/hysteria2/raw/main/install.sh -o instal
 
 **如下图可以发现我的IP的 55547 端口在墙内已经无法连接，但其他世界各地的机器可以正常和我节点的 55557 端口建立连接**
 
-![GfwIpBan](/static/images/GfwIpBan.png)
+![GfwIpBan](/static/images/2023-12/GfwIpBan.png)
 
 如果证实被`GFW`干碎了，可以改`nginx.conf`换端口，开新端口的安全组，再改 clash 客户端 yaml 配置文件的端口即可
 
@@ -236,7 +236,7 @@ IP 被墙可以通过网站 `ping.ce` 检测，墙了就找VPS厂家提工单换
 
 每天都去改nginx配置，改服务器安全组，改客户端的配置文件真的麻烦
 
-![CFSSL](/static/images/CFSSL.png)
+![CFSSL](/static/images/2023-12/CFSSL.png)
 
 -------------
 
@@ -265,7 +265,7 @@ IP 被墙可以通过网站 `ping.ce` 检测，墙了就找VPS厂家提工单换
 用过 [iGuge Helper](https://iguge.net/)，使用教程：打开浏览器扩展程序界面的`开发者模式`，把 [crx文件](https://drive.google.com/file/d/1qeOwx_HQxSGNwCtJ4VEQw4C8QDPgz2ae/view) 拖入其中即可安装完成
 
 
-![GoogleExtensionsVpn](/static/images/GoogleExtensionsVpn.png)
+![GoogleExtensionsVpn](/static/images/2023-12/GoogleExtensionsVpn.png)
 
 
 ## 6 海外SIM卡漫游

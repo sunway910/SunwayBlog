@@ -8,6 +8,7 @@ import TableWrapper from './TableWrapper'
 import BilibiliEmbed from "./BilibiliEmbed";
 import YoutubeEmbed from "./YoutubeEmbed";
 import VideoEmbed from "./VideoEmbed";
+import LinkPreviewCard from './LinkPreviewCard'
 
 
 export const components: MDXComponents = {
@@ -20,4 +21,5 @@ export const components: MDXComponents = {
     BilibiliEmbed,
     YoutubeEmbed,
     VideoEmbed,
+    LinkPreviewCard,
 }

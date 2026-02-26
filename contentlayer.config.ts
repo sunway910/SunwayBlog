@@ -14,6 +14,7 @@ import {
   remarkImgToJsx,
   extractTocHeadings,
 } from 'pliny/mdx-plugins/index.js'
+import { remarkLinkPreview } from './lib/remark-plugins/remark-link-preview'
 // Rehype packages
 import rehypeSlug from 'rehype-slug'
 import rehypeAutolinkHeadings from 'rehype-autolink-headings'
@@ -158,6 +159,9 @@ export default makeSource({
       remarkMath,
       remarkImgToJsx,
       remarkAlert,
+      // Link preview disabled by default due to performance impact
+      // Enable only when needed: [remarkLinkPreview, { enabled: true, debug: true }],
+      [remarkLinkPreview, { enabled: false, cache: true, timeout: 3000, concurrency: 10 }],
     ],
     rehypePlugins: [
       rehypeSlug,

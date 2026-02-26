@@ -46,3 +46,7 @@ yarn-error.log*
 # Contentlayer
 .contentlayer
 .idea
+*.lock
+
+# Link preview cache
+.link-preview-cache.json

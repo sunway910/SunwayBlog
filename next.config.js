@@ -18,7 +18,6 @@ const ContentSecurityPolicy = `
 
 const output = process.env.EXPORT || 'export'
 const basePath = process.env.BASE_PATH || "build"
-const unoptimized = process.env.UNOPTIMIZED ? true : undefined
 
 /**
  * @type {import('next/dist/next-server/server/config').NextConfig}
@@ -48,7 +47,7 @@ module.exports = () => {
             domains: [
                 'r2.sunway.run',
             ],
-            unoptimized,
+            unoptimized: true,
             remotePatterns: [
                 {
                     protocol: 'https',

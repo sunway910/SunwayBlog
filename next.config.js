@@ -5,9 +5,10 @@ const withBundleAnalyzer = require('@next/bundle-analyzer')({
 })
 
 // You might need to insert additional domains in script-src if you are using external services
-const ContentSecurityPolicy = `
+const ContentSecurityPolicy =
+    `
   default-src 'self';
-  script-src 'self' 'unsafe-eval' 'unsafe-inline' giscus.app www.googletagmanager.com analytics.umami.is;
+  script-src 'self' 'unsafe-eval' 'unsafe-inline' giscus.app www.googletagmanager.com;
   style-src 'self' 'unsafe-inline';
   img-src * blob: data:;
   media-src *.s3.amazonaws.com;
@@ -25,24 +26,14 @@ const basePath = process.env.BASE_PATH || "build"
 module.exports = () => {
     const plugins = [withContentlayer, withBundleAnalyzer]
     return plugins.reduce((acc, next) => next(acc), {
-        output: output,
-        distDir: basePath,
         reactStrictMode: true,
-        trailingSlash: true,
-        turbopack: {
-            root: process.cwd(),
-            rules: {
-                '*.svg': {
-                    loaders: ['@svgr/webpack'],
-                    as: '*.js',
-                },
-            },
-        },
         pageExtensions: ['ts', 'tsx', 'js', 'jsx', 'md', 'mdx'],
         eslint: {
             ignoreDuringBuilds: true,
             dirs: ['app', 'components', 'layouts', 'scripts'],
         },
+        output: output,
+        distDir: basePath,
         images: {
             domains: [
                 'r2.sunway.run',

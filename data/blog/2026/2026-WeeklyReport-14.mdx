@@ -1,0 +1,110 @@
+---
+title: 2026 Weekly Report 14
+date: '2026-04-06'
+tags: ['Weekly Report']
+draft: false
+images: []
+summary: 2026第 14 周周报
+---
+
+<TOCInline toc={props.toc}/>
+
+
+---
+
+## 生活
+
+- **1** 健身周报：一周 4 练，轻轻松松
+
+---
+
+- **2** 持有 `#BRKB`/`#ORCL`/`#MSFT`/`#NVO`/`#Robinhood`/`#SOFI`/`#APLD`
+
+- 1 市场终结了连续9个星期的星期四暴跌
+- 2 市场好想要开始反转了
+- 3 下周 APLD 财报，有点期待
+
+---
+
+- **3** prompt 工程师
+
+使用 AI 实现十倍界王拳的前提是能描述清楚需求，[yetone](https://x.com/yetone) 开源了一个 `prompt` 值得参考
+
+本质都是 `Harness Engineering`，设计并构建足够好的约束机制、反馈回路和工作流。
+
+https://github.com/yetone/voice-input-src
+
+```shell
+claude \
+  --dangerously-skip-permissions \
+  --output-format=stream-json \
+  --verbose \
+  -p "Please implement a macOS menu-bar voice input app (Swift, macOS 14+) with the following requirements:
+
+1. Hold the Fn key to record, release to inject the transcribed text into the currently focused input field. Use streaming transcription (Apple Speech Recognition framework) as preferred approach. Monitor Fn key globally via CGEvent tap, suppressing the Fn event to prevent triggering the emoji picker.
+2. Default language must be Simplified Chinese (zh-CN), ensuring Chinese input recognition works out of the box. Also provide language switching options in the menu bar (English, Simplified Chinese, Traditional Chinese, Japanese, Korean). Language selection is stored in UserDefaults.
+3. While recording, display an elegant frameless capsule-shaped floating window centered at the bottom of the screen — no traffic lights or titlebar. Use NSPanel (nonactivatingPanel) + NSVisualEffectView (.hudWindow material), sufficient height (56px, corner radius 28px), containing:
+   - 5 vertical bar waveform animation on the left (44×32px), driven by real-time audio RMS levels (no hardcoded fake animations) — louder speech produces larger waveforms, quiet moments produce smaller ones. Bar weights are [0.5, 0.8, 1.0, 0.75, 0.55] creating a natural center-high, sides-low effect. Smooth envelope (attack 40%, release 15%), add ±4% random jitter per bar for organic feel. Waveforms should be large enough to be clearly visible.
+   - Text label on the right (elastic width 160-560px) showing real-time transcription, capsule elastically widens as text grows
+   - Entry spring animation (0.35s), text width smooth transition (0.25s), exit scale animation (0.22s)
+4. Text injection uses clipboard + simulated Cmd+V paste. Before injection, detect the current input method: if it is a CJK input method, temporarily switch to an ASCII input source (ABC/US keyboard) before pasting, then restore the original input method after paste completes — this prevents CJK input methods from intercepting Cmd+V. Restore original clipboard contents after injection.
+5. Integrate LLM to improve speech recognition accuracy, especially for mixed Chinese-English scenarios. Use an OpenAI-compatible API (configurable API Base URL, API Key, Model) to refine transcribed text. The LLM system prompt must be very conservative in corrections: only fix obvious speech recognition errors (e.g., Chinese homophone errors, English technical terms mistakenly converted to Chinese like 配森→Python, 杰森→JSON). Never rewrite, polish, or remove any content that appears correct — if the input looks correct, return it as-is.
+6. Provide an LLM Refinement submenu in the menu bar with an enable/disable toggle and a Settings entry. The Settings window contains three input fields: API Base URL, API Key, Model — the API Key field must support being fully cleared — plus Test and Save buttons. After releasing Fn, if LLM is enabled and configured, the floating window shows a Refining... status, waiting for the LLM response before injecting the final text.
+7. The app runs in LSUIElement mode (menu bar icon only, no Dock icon). Build with Swift Package Manager, provide a Makefile (build/run/install/clean), build output is a signed .app bundle."
+
+```
+
+
+---
+
+- **5** Coding Plan
+
+智谱和阿里的 `coding plan` 同时到期了，准备只续费智谱了，虽然阿里的 `coding plan` 选择面更广一点
+
+---
+
+- **5** 小红书
+
+我在小红书上这篇出金的帖子终于被封杀了，存活时间半年
+
+PS: 3月底 `backpack` 出金到天星还是没有什么问题，0 手续费
+
+<div style={{display: "flex", justifyContent: "center"}}>
+    <img
+        style={{width: "500px"}}
+        src="/static/images/2026-04/2026-w14/rednote.jpg"
+    />
+</div>
+
+---
+
+- **6** 清明
+
+清明回家休息了一下，从深圳家里触发到长沙家里最快5个钟搞定
+
+和女朋友出去玩了两天，发现全季酒店的空调没办法调整到低温状态，有点被热死的感觉，吐槽一下
+
+
+---
+
+## 工作
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
